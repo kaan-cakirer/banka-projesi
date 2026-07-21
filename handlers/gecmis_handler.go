@@ -3,23 +3,23 @@ package handlers
 import (
 	"banka-projesi/config"
 	"banka-projesi/models"
+	"banka-projesi/utils"
 	"database/sql"
 	"encoding/json"
-	"fmt"
 	"net/http"
 )
 
 // IslemGecmisi: POST /gecmis (JSON Body: {"id": 1, "pin": "1234"})
 func IslemGecmisi(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
-		http.Error(w, "Sadece POST istekleri kabul edilir", http.StatusMethodNotAllowed)
+		utils.JSONResponse(w, http.StatusMethodNotAllowed, false, "Sadece POST istekleri kabul edilir", nil)
 		return
 	}
 
 	var istek models.GecmisIstegi
 	err := json.NewDecoder(r.Body).Decode(&istek)
 	if err != nil {
-		fmt.Fprintf(w, "Geçersiz JSON verisi: %v", err)
+		utils.JSONResponse(w, http.StatusBadRequest, false, "Geçersiz JSON verisi", nil)
 		return
 	}
 
@@ -28,15 +28,15 @@ func IslemGecmisi(w http.ResponseWriter, r *http.Request) {
 	err = config.DB.QueryRow("SELECT pin FROM hesaplar WHERE id = ?", istek.ID).Scan(&gercekPin)
 	if err != nil {
 		if err == sql.ErrNoRows {
-			fmt.Fprintf(w, "Hesap bulunamadı.")
+			utils.JSONResponse(w, http.StatusNotFound, false, "Hesap bulunamadı", nil)
 			return
 		}
-		fmt.Fprintf(w, "Veritabanı hatası: %v", err)
+		utils.JSONResponse(w, http.StatusInternalServerError, false, "Veritabanı hatası", nil)
 		return
 	}
 
 	if istek.Pin != gercekPin {
-		fmt.Fprintf(w, "Hatalı PIN Kodu! İşlem geçmişi görüntülenemez.")
+		utils.JSONResponse(w, http.StatusUnauthorized, false, "Hatalı PIN Kodu! İşlem geçmişi görüntülenemez", nil)
 		return
 	}
 
@@ -50,15 +50,12 @@ func IslemGecmisi(w http.ResponseWriter, r *http.Request) {
 
 	satirlar, err := config.DB.Query(sorgu, istek.ID, istek.ID)
 	if err != nil {
-		fmt.Fprintf(w, "İşlem geçmişi alınırken hata oluştu: %v", err)
+		utils.JSONResponse(w, http.StatusInternalServerError, false, "İşlem geçmişi alınırken hata oluştu", nil)
 		return
 	}
 	defer satirlar.Close()
 
-	fmt.Fprintf(w, "=== HESAP İŞLEM GEÇMİŞİ (DEKONT) ===\n\n")
-
-	islemSayaci := 0
-	kullaniciIDStr := fmt.Sprintf("%d", istek.ID)
+	islemler := make([]models.Islem, 0)
 
 	for satirlar.Next() {
 		var islem models.Islem
@@ -66,23 +63,18 @@ func IslemGecmisi(w http.ResponseWriter, r *http.Request) {
 
 		err := satirlar.Scan(&islem.ID, &islem.GonderenID, &islem.AliciID, &miktarKurus, &islem.IslemTipi, &islem.Tarih)
 		if err != nil {
-			fmt.Fprintf(w, "Veri okunurken hata oluştu: %v", err)
+			utils.JSONResponse(w, http.StatusInternalServerError, false, "Veri okunurken hata oluştu", nil)
 			return
 		}
 
 		islem.MiktarTL = float64(miktarKurus) / 100.0
-		islemSayaci++
-
-		if islem.IslemTipi == "YATIRMA" {
-			fmt.Fprintf(w, "[%s] PARA YATIRMA: +%.2f TL | Tarih: %s\n", islem.IslemTipi, islem.MiktarTL, islem.Tarih)
-		} else if fmt.Sprintf("%d", islem.GonderenID) == kullaniciIDStr {
-			fmt.Fprintf(w, "[GİDEN TRANSFER] Alıcı ID: %d | Miktar: -%.2f TL | Tarih: %s\n", islem.AliciID, islem.MiktarTL, islem.Tarih)
-		} else {
-			fmt.Fprintf(w, "[GELEN TRANSFER] Gönderen ID: %d | Miktar: +%.2f TL | Tarih: %s\n", islem.GonderenID, islem.MiktarTL, islem.Tarih)
-		}
+		islemler = append(islemler, islem)
 	}
 
-	if islemSayaci == 0 {
-		fmt.Fprintf(w, "Henüz hiç işlem geçmişiniz bulunmamaktadır.")
+	if err = satirlar.Err(); err != nil {
+		utils.JSONResponse(w, http.StatusInternalServerError, false, "İşlem geçmişi okunurken hata oluştu", nil)
+		return
 	}
+
+	utils.JSONResponse(w, http.StatusOK, true, "İşlem geçmişi başarıyla getirildi", islemler)
 }
