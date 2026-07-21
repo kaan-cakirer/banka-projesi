@@ -18,6 +18,7 @@ func main() {
 	http.HandleFunc("/hesap-ac", handlers.HesapAc)
 	http.HandleFunc("/bakiye", handlers.BakiyeSorgula)
 	http.HandleFunc("/para-yatir", handlers.ParaYatir)
+	http.HandleFunc("/para-gonder", handlers.ParaGonder)
 
 	fmt.Println("Banka sunucusu 8080 portunda dinliyor...")
 

@@ -23,16 +23,32 @@ func InitDB() *sql.DB {
 		log.Fatal("Veritabanına Ulaşılamıyor: ", err)
 	}
 
-	tabloSorgusu := `
+	hesaplarTablosu := `
 	CREATE TABLE IF NOT EXISTS hesaplar (
 		id INTEGER PRIMARY KEY AUTOINCREMENT,
 		isim TEXT NOT NULL,
-		bakiye INTEGER DEFAULT 0
+		bakiye INTEGER DEFAULT 0,
+		pin TEXT DEFAULT '1234'
 	);`
 
-	_, err = DB.Exec(tabloSorgusu)
+	islemlerTablosu := `
+	CREATE TABLE IF NOT EXISTS islemler (
+		id INTEGER PRIMARY KEY AUTOINCREMENT,
+		gonderen_id INTEGER,
+		alici_id INTEGER,
+		miktar INTEGER NOT NULL,
+		islem_tipi TEXT NOT NULL,
+		tarih DATETIME DEFAULT CURRENT_TIMESTAMP
+	);`
+
+	_, err = DB.Exec(hesaplarTablosu)
 	if err != nil {
-		log.Fatal("Tablo Oluşturulurken Hata Oluştu: ", err)
+		log.Fatal("Hesaplar tablosu oluşturulurken hata: ", err)
+	}
+
+	_, err = DB.Exec(islemlerTablosu)
+	if err != nil {
+		log.Fatal("İşlemler tablosu oluşturulurken hata: ", err)
 	}
 
 	fmt.Println("Veritabanı Bağlantısı Başarıyla Kuruldu")
