@@ -2,23 +2,33 @@ package handlers
 
 import (
 	"banka-projesi/config"
+	"banka-projesi/models"
 	"database/sql"
+	"encoding/json"
 	"fmt"
 	"net/http"
-	"strconv"
 )
 
-// BakiyeSorgula: /bakiye?id=1&pin=1234
+// BakiyeSorgula: POST /bakiye (JSON Body: {"id": 1, "pin": "1234"})
 func BakiyeSorgula(w http.ResponseWriter, r *http.Request) {
-	gelenID := r.URL.Query().Get("id")
-	gelenPin := r.URL.Query().Get("pin")
+	if r.Method != http.MethodPost {
+		http.Error(w, "Sadece POST istekleri kabul edilir", http.StatusMethodNotAllowed)
+		return
+	}
+
+	var istek models.BakiyeIstegi
+	err := json.NewDecoder(r.Body).Decode(&istek)
+	if err != nil {
+		fmt.Fprintf(w, "Geçersiz JSON verisi: %v", err)
+		return
+	}
 
 	var isim string
 	var bakiyeKurus int
 	var gercekPin string
 
 	sorgu := "SELECT isim, bakiye, pin FROM hesaplar WHERE id = ?"
-	err := config.DB.QueryRow(sorgu, gelenID).Scan(&isim, &bakiyeKurus, &gercekPin)
+	err = config.DB.QueryRow(sorgu, istek.ID).Scan(&isim, &bakiyeKurus, &gercekPin)
 
 	if err != nil {
 		if err == sql.ErrNoRows {
@@ -29,7 +39,7 @@ func BakiyeSorgula(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if gelenPin != gercekPin {
+	if istek.Pin != gercekPin {
 		fmt.Fprintf(w, "Hatalı PIN Kodu! Bakiye görüntülenemez.")
 		return
 	}
@@ -38,50 +48,60 @@ func BakiyeSorgula(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprintf(w, "Hesap Sahibi: %s\nBakiye: %.2f TL", isim, bakiyeTL)
 }
 
-// HesapAc: /hesap-ac?isim=Ahmet&bakiye=5000&pin=4321
+// HesapAc: POST /hesap-ac (JSON Body: {"isim": "Kaan", "bakiye": 5000, "pin": "9999"})
 func HesapAc(w http.ResponseWriter, r *http.Request) {
-	isim := r.URL.Query().Get("isim")
-	bakiyeStr := r.URL.Query().Get("bakiye")
-	pin := r.URL.Query().Get("pin")
+	if r.Method != http.MethodPost {
+		http.Error(w, "Sadece POST istekleri kabul edilir", http.StatusMethodNotAllowed)
+		return
+	}
 
-	if isim == "" {
+	var istek models.HesapAcIstegi
+	err := json.NewDecoder(r.Body).Decode(&istek)
+	if err != nil {
+		fmt.Fprintf(w, "Geçersiz JSON verisi: %v", err)
+		return
+	}
+
+	if istek.Isim == "" {
 		fmt.Fprintf(w, "Lütfen geçerli bir isim giriniz.")
 		return
 	}
 
-	if pin == "" {
-		pin = "1234"
+	if istek.Pin == "" {
+		istek.Pin = "1234"
 	}
 
-	miktarSayi, _ := strconv.ParseFloat(bakiyeStr, 64)
-	baslangicKurus := int(miktarSayi * 100)
+	baslangicKurus := int(istek.Bakiye * 100)
 
 	sorgu := "INSERT INTO hesaplar (isim, bakiye, pin) VALUES (?, ?, ?)"
-	sonuc, err := config.DB.Exec(sorgu, isim, baslangicKurus, pin)
+	sonuc, err := config.DB.Exec(sorgu, istek.Isim, baslangicKurus, istek.Pin)
 	if err != nil {
 		fmt.Fprintf(w, "Hesap oluşturulurken hata oluştu: %v", err)
 		return
 	}
 
 	yeniID, _ := sonuc.LastInsertId()
-	fmt.Fprintf(w, "Hesap başarıyla oluşturuldu!\nHesap ID: %d\nSahibi: %s\nPIN: %s", yeniID, isim, pin)
+	fmt.Fprintf(w, "Hesap başarıyla oluşturuldu!\nHesap ID: %d\nSahibi: %s\nPIN: %s", yeniID, istek.Isim, istek.Pin)
 }
 
-// ParaYatir: /para-yatir?id=1&miktar=500
+// ParaYatir: POST /para-yatir (JSON Body: {"id": 1, "miktar": 500})
 func ParaYatir(w http.ResponseWriter, r *http.Request) {
-	kullaniciID := r.URL.Query().Get("id")
-	miktarStr := r.URL.Query().Get("miktar")
-
-	miktarSayi, err := strconv.ParseFloat(miktarStr, 64)
-	if err != nil || miktarSayi <= 0 {
-		fmt.Fprintf(w, "Geçerli bir miktar giriniz")
+	if r.Method != http.MethodPost {
+		http.Error(w, "Sadece POST istekleri kabul edilir", http.StatusMethodNotAllowed)
 		return
 	}
 
-	yatirilacakKurus := int(miktarSayi * 100)
+	var istek models.ParaYatirIstegi
+	err := json.NewDecoder(r.Body).Decode(&istek)
+	if err != nil || istek.Miktar <= 0 {
+		fmt.Fprintf(w, "Geçersiz JSON veya miktar verisi")
+		return
+	}
+
+	yatirilacakKurus := int(istek.Miktar * 100)
 
 	// Bakiye artırma işlemi
-	sonuc, err := config.DB.Exec("UPDATE hesaplar SET bakiye = bakiye + ? WHERE id = ?", yatirilacakKurus, kullaniciID)
+	sonuc, err := config.DB.Exec("UPDATE hesaplar SET bakiye = bakiye + ? WHERE id = ?", yatirilacakKurus, istek.ID)
 	if err != nil {
 		fmt.Fprintf(w, "Para yatırılırken hata oluştu: %v", err)
 		return
@@ -93,8 +113,8 @@ func ParaYatir(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// İşlem geçmişine (islemler) ekleme (gonderen_id NULL veya kendisi geçebilir)
-	config.DB.Exec("INSERT INTO islemler (gonderen_id, alici_id, miktar, islem_tipi) VALUES (?, ?, ?, ?)", kullaniciID, kullaniciID, yatirilacakKurus, "YATIRMA")
+	// İşlem geçmişine (islemler) ekleme
+	config.DB.Exec("INSERT INTO islemler (gonderen_id, alici_id, miktar, islem_tipi) VALUES (?, ?, ?, ?)", istek.ID, istek.ID, yatirilacakKurus, "YATIRMA")
 
-	fmt.Fprintf(w, "Para yatırma başarılı! %.2f TL yatırıldı.", miktarSayi)
+	fmt.Fprintf(w, "Para yatırma başarılı! %.2f TL yatırıldı.", istek.Miktar)
 }

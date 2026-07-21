@@ -2,37 +2,41 @@ package handlers
 
 import (
 	"banka-projesi/config"
+	"banka-projesi/models"
+	"encoding/json"
 	"fmt"
 	"net/http"
-	"strconv"
 )
 
+// ParaGonder: POST /para-gonder (JSON Body: {"gonderen_id": 1, "alici_id": 2, "miktar": 100, "pin": "1234"})
 func ParaGonder(w http.ResponseWriter, r *http.Request) {
-	gonderenID := r.URL.Query().Get("gonderen")
-	alanID := r.URL.Query().Get("alan")
-	miktarStr := r.URL.Query().Get("miktar")
-	pin := r.URL.Query().Get("pin")
-
-	miktarSayi, err := strconv.ParseFloat(miktarStr, 64)
-	if err != nil || miktarSayi <= 0 {
-		fmt.Fprintf(w, "Geçerli bir miktar giriniz")
+	if r.Method != http.MethodPost {
+		http.Error(w, "Sadece POST istekleri kabul edilir", http.StatusMethodNotAllowed)
 		return
 	}
-	gonderilecekKurus := int(miktarSayi * 100)
+
+	var istek models.TransferIstegi
+	err := json.NewDecoder(r.Body).Decode(&istek)
+	if err != nil || istek.Miktar <= 0 {
+		fmt.Fprintf(w, "Geçersiz JSON verisi veya miktar")
+		return
+	}
+
+	gonderilecekKurus := int(istek.Miktar * 100)
 
 	var gonderenBakiye int
 	var gercekPin string
 
 	sorgu := "SELECT bakiye, pin FROM hesaplar WHERE id = ?"
-	err = config.DB.QueryRow(sorgu, gonderenID).Scan(&gonderenBakiye, &gercekPin)
+	err = config.DB.QueryRow(sorgu, istek.GonderenID).Scan(&gonderenBakiye, &gercekPin)
 
 	if err != nil {
 		fmt.Fprintf(w, "Gönderen hesap bulunamadı")
 		return
 	}
 
-	// PIN Kontrolü (String kıyası)
-	if gercekPin != pin {
+	// PIN Kontrolü
+	if gercekPin != istek.Pin {
 		fmt.Fprintf(w, "Hatalı PIN kodu! İşlem reddedildi.")
 		return
 	}
@@ -48,25 +52,25 @@ func ParaGonder(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// 1. Gönderenden düş
-	_, err = tx.Exec("UPDATE hesaplar SET bakiye = bakiye - ? WHERE id = ?", gonderilecekKurus, gonderenID)
+	// 1. Gönderenin bakiyesini düş
+	_, err = tx.Exec("UPDATE hesaplar SET bakiye = bakiye - ? WHERE id = ?", gonderilecekKurus, istek.GonderenID)
 	if err != nil {
 		tx.Rollback()
-		fmt.Fprintf(w, "Gönderilen Bakiye Düşülürken Bir Hata Oluştu: %v", err)
+		fmt.Fprintf(w, "Gönderilen bakiye düşülürken hata oluştu: %v", err)
 		return
 	}
 
-	// 2. Alıcıya ekle
-	_, err = tx.Exec("UPDATE hesaplar SET bakiye = bakiye + ? WHERE id = ?", gonderilecekKurus, alanID)
+	// 2. Alıcının bakiyesini artır
+	_, err = tx.Exec("UPDATE hesaplar SET bakiye = bakiye + ? WHERE id = ?", gonderilecekKurus, istek.AliciID)
 	if err != nil {
 		tx.Rollback()
-		fmt.Fprintf(w, "Gönderilen Bakiye Yüklenirken Bir Hata Oluştu: %v", err)
+		fmt.Fprintf(w, "Gönderilen bakiye yüklenirken hata oluştu: %v", err)
 		return
 	}
 
-	// 3. İşlem Geçmişine Kaydet
+	// 3. İşlem geçmişine kaydet
 	islemSorgusu := "INSERT INTO islemler (gonderen_id, alici_id, miktar, islem_tipi) VALUES (?, ?, ?, ?)"
-	_, err = tx.Exec(islemSorgusu, gonderenID, alanID, gonderilecekKurus, "TRANSFER")
+	_, err = tx.Exec(islemSorgusu, istek.GonderenID, istek.AliciID, gonderilecekKurus, "TRANSFER")
 	if err != nil {
 		tx.Rollback()
 		fmt.Fprintf(w, "İşlem geçmişi kaydedilirken hata oluştu: %v", err)
@@ -79,5 +83,5 @@ func ParaGonder(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	fmt.Fprintf(w, "Transfer Başarılı!\n%.2f TL Tutarındaki Miktar %s Kullanıcısından %s Kullanıcısına Başarıyla Aktarıldı.", miktarSayi, gonderenID, alanID)
+	fmt.Fprintf(w, "Transfer Başarılı!\n%.2f TL tutarındaki miktar %d kullanıcısından %d kullanıcısına başarıyla aktarıldı.", istek.Miktar, istek.GonderenID, istek.AliciID)
 }
