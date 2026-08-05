@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Defter — Banka Hesap Yönetimi</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<div class="app">
+
+  <!-- Üst şerit: marka + oturum bilgisi -->
+  <header class="topbar">
+    <div class="brand">
+      <span class="brand-mark">D</span>
+      <div class="brand-text">
+        <span class="brand-name">Defter</span>
+        <span class="brand-sub">hesap defteri</span>
+      </div>
+    </div>
+
+    <div class="session" id="session-chip" hidden>
+      <div class="session-info">
+        <span class="session-name" id="session-name">—</span>
+        <span class="session-id" id="session-id">#0000</span>
+      </div>
+      <button class="btn btn-ghost btn-sm" id="btn-logout">Çıkış</button>
+    </div>
+
+    <button class="settings-btn" id="btn-settings" title="Sunucu ayarları" aria-label="Sunucu ayarları">⚙</button>
+  </header>
+
+  <!-- Bildirim çubuğu -->
+  <div class="toast-stack" id="toast-stack" aria-live="polite"></div>
+
+  <main class="stage">
+
+    <!-- GİRİŞ / HESAP AÇMA -->
+    <section class="view" id="view-auth">
+      <div class="auth-grid">
+
+        <div class="card auth-card">
+          <div class="card-eyebrow">Kayıtlı hesap</div>
+          <h1 class="card-title">Hesaba giriş yap</h1>
+          <p class="card-hint">Hesap numaranı ve 4 haneli PIN kodunu gir.</p>
+
+          <form id="form-login" novalidate>
+            <label class="field">
+              <span class="field-label">Hesap No</span>
+              <input class="field-input mono" type="number" min="1" id="login-id" placeholder="Örn. 1" required>
+            </label>
+            <label class="field">
+              <span class="field-label">PIN</span>
+              <input class="field-input mono" type="password" inputmode="numeric" maxlength="4" id="login-pin" placeholder="••••" required>
+            </label>
+            <button class="btn btn-primary btn-block" type="submit">
+              <span class="btn-label">Giriş Yap</span>
+              <span class="btn-spinner" hidden></span>
+            </button>
+          </form>
+        </div>
+
+        <div class="card auth-card auth-card-secondary">
+          <div class="card-eyebrow">Yeni müşteri</div>
+          <h1 class="card-title">Hesap aç</h1>
+          <p class="card-hint">Ad soyad, başlangıç bakiyesi ve bir PIN belirle.</p>
+
+          <form id="form-create" novalidate>
+            <label class="field">
+              <span class="field-label">Ad Soyad</span>
+              <input class="field-input" type="text" id="create-isim" placeholder="Kaan Çakırer" required>
+            </label>
+            <div class="field-row">
+              <label class="field">
+                <span class="field-label">Başlangıç Bakiyesi (₺)</span>
+                <input class="field-input mono" type="number" min="0" step="0.01" id="create-bakiye" placeholder="0.00">
+              </label>
+              <label class="field">
+                <span class="field-label">PIN</span>
+                <input class="field-input mono" type="password" inputmode="numeric" maxlength="4" id="create-pin" placeholder="1234">
+              </label>
+            </div>
+            <button class="btn btn-secondary btn-block" type="submit">
+              <span class="btn-label">Hesap Oluştur</span>
+              <span class="btn-spinner" hidden></span>
+            </button>
+          </form>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- PANO -->
+    <section class="view" id="view-dashboard" hidden>
+
+      <!-- Bakiye pasaportu -->
+      <div class="passbook">
+        <div class="passbook-stitch" aria-hidden="true"></div>
+        <div class="passbook-top">
+          <div class="stamp" id="stamp-initial">D</div>
+          <div class="passbook-meta">
+            <span class="passbook-label">Güncel Bakiye</span>
+            <span class="passbook-account">Hesap <span class="mono" id="passbook-id">#0000</span></span>
+          </div>
+          <button class="btn btn-ghost btn-sm btn-refresh" id="btn-refresh" title="Bakiyeyi yenile">↻ Yenile</button>
+        </div>
+        <div class="passbook-balance">
+          <span class="currency">₺</span><span id="balance-amount">0,00</span>
+        </div>
+        <div class="passbook-rule"></div>
+        <div class="passbook-name" id="passbook-name">—</div>
+      </div>
+
+      <div class="quick-actions" role="group" aria-label="Hızlı işlemler">
+        <button class="quick-action" data-quick-tab="doviz" type="button">Döviz al / sat</button>
+      </div>
+
+      <!-- Sekmeler -->
+      <nav class="tabs" role="tablist">
+        <button class="tab active" data-tab="yatir" role="tab" aria-selected="true">Para Yatır</button>
+        <button class="tab" data-tab="gonder" role="tab" aria-selected="false">Para Gönder</button>
+        <button class="tab" data-tab="doviz" role="tab" aria-selected="false">Döviz</button>
+        <button class="tab" data-tab="gecmis" role="tab" aria-selected="false">İşlem Geçmişi</button>
+      </nav>
+
+      <!-- Panel: Para Yatır -->
+      <div class="panel card" data-panel="yatir">
+        <div class="card-eyebrow">Nakit yatırma</div>
+        <h2 class="card-title-sm">Hesabına para yatır</h2>
+        <form id="form-yatir" novalidate>
+          <label class="field">
+            <span class="field-label">Miktar (₺)</span>
+            <input class="field-input mono" type="number" min="0.01" step="0.01" id="yatir-miktar" placeholder="0.00" required>
+          </label>
+          <button class="btn btn-primary btn-block" type="submit">
+            <span class="btn-label">Yatır</span>
+            <span class="btn-spinner" hidden></span>
+          </button>
+        </form>
+      </div>
+
+      <!-- Panel: Para Gönder -->
+      <div class="panel card" data-panel="gonder" hidden>
+        <div class="card-eyebrow">Transfer</div>
+        <h2 class="card-title-sm">Başka bir hesaba gönder</h2>
+        <form id="form-gonder" novalidate>
+          <label class="field">
+            <span class="field-label">Alıcı Hesap No</span>
+            <input class="field-input mono" type="number" min="1" id="gonder-alici" placeholder="Örn. 2" required>
+          </label>
+          <label class="field">
+            <span class="field-label">Miktar (₺)</span>
+            <input class="field-input mono" type="number" min="0.01" step="0.01" id="gonder-miktar" placeholder="0.00" required>
+          </label>
+          <label class="field">
+            <span class="field-label">PIN (onay)</span>
+            <input class="field-input mono" type="password" inputmode="numeric" maxlength="4" id="gonder-pin" placeholder="••••" required>
+          </label>
+          <button class="btn btn-primary btn-block" type="submit">
+            <span class="btn-label">Gönder</span>
+            <span class="btn-spinner" hidden></span>
+          </button>
+        </form>
+      </div>
+
+      <!-- Panel: Döviz -->
+      <div class="panel card" data-panel="doviz" hidden>
+        <div class="card-eyebrow">Döviz</div>
+        <h2 class="card-title-sm">Döviz al / sat ve varlıklarınızı takip et</h2>
+        <p class="card-hint">TL bakiyenizden döviz satın alın veya mevcut dövizlerinizi görüntüleyin.</p>
+
+        <form id="form-doviz" novalidate>
+          <div class="field-row">
+            <label class="field">
+              <span class="field-label">İşlem</span>
+              <select class="field-input" id="doviz-islem">
+                <option value="al">Döviz Al</option>
+                <option value="sat">Döviz Sat</option>
+              </select>
+            </label>
+            <label class="field">
+              <span class="field-label">Döviz Kodu</span>
+              <select class="field-input" id="doviz-kod">
+                <option value="USD">USD</option>
+                <option value="EUR">EUR</option>
+                <option value="GBP">GBP</option>
+                <option value="JPY">JPY</option>
+              </select>
+            </label>
+          </div>
+          <label class="field">
+            <span class="field-label">Miktar</span>
+            <input class="field-input mono" type="number" min="0.01" step="0.01" id="doviz-miktar" placeholder="0.00" required>
+          </label>
+          <label class="field">
+            <span class="field-label">PIN (onay)</span>
+            <input class="field-input mono" type="password" inputmode="numeric" maxlength="4" id="doviz-pin" placeholder="••••" required>
+          </label>
+          <button class="btn btn-primary btn-block" type="submit">
+            <span class="btn-label" id="doviz-submit-label">Döviz Al</span>
+            <span class="btn-spinner" hidden></span>
+          </button>
+        </form>
+
+        <div class="asset-card">
+          <div class="card-eyebrow">Varlıklar</div>
+          <ul class="asset-list" id="asset-list"></ul>
+        </div>
+      </div>
+
+      <!-- Panel: İşlem Geçmişi -->
+      <div class="panel card panel-ledger" data-panel="gecmis" hidden>
+        <div class="card-eyebrow">Son hareketler</div>
+        <h2 class="card-title-sm">İşlem geçmişi</h2>
+        <div id="ledger-empty" class="ledger-empty" hidden>Henüz işlem yok.</div>
+        <ul class="ledger-list" id="ledger-list"></ul>
+      </div>
+
+    </section>
+
+  </main>
+
+  <footer class="foot">
+    <span>banka-projesi · Go REST API üzerinde çalışır</span>
+  </footer>
+</div>
+
+<!-- Sunucu ayarları modalı -->
+<div class="modal-backdrop" id="settings-backdrop" hidden>
+  <div class="modal card" role="dialog" aria-modal="true">
+    <div class="card-eyebrow">Bağlantı</div>
+    <h2 class="card-title-sm">Sunucu adresi</h2>
+    <p class="card-hint">Go sunucun farklı bir adres/portta çalışıyorsa güncelle.</p>
+    <label class="field">
+      <span class="field-label">API Base URL</span>
+      <input class="field-input mono" type="text" id="settings-url" placeholder="http://localhost:8080">
+    </label>
+    <div class="modal-actions">
+      <button class="btn btn-ghost btn-sm" id="settings-cancel" type="button">Vazgeç</button>
+      <button class="btn btn-primary btn-sm" id="settings-save" type="button">Kaydet</button>
+    </div>
+  </div>
+</div>
+
+<script src="app.js"></script>
+</body>
+</html>

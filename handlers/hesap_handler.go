@@ -9,7 +9,6 @@ import (
 	"net/http"
 )
 
-// BakiyeSorgula: POST /bakiye (JSON Body: {"id": 1, "pin": "1234"})
 func BakiyeSorgula(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		utils.JSONResponse(w, http.StatusMethodNotAllowed, false, "Sadece POST istekleri kabul edilir", nil)
