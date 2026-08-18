@@ -303,6 +303,10 @@ func VarliklariGetir(w http.ResponseWriter, r *http.Request) {
 		v.Miktar = float64(miktarCent) / 100.0 // Cent -> Ana birim dönüşümü (Örn: 1050 -> 10.50)
 		varliklar = append(varliklar, v)
 	}
+	if err = rows.Err(); err != nil {
+		utils.JSONResponse(w, http.StatusInternalServerError, false, "Varlıklar okunurken hata oluştu", nil)
+		return
+	}
 
 	utils.JSONResponse(w, http.StatusOK, true, "Varlıklar başarıyla getirildi", varliklar)
 }
