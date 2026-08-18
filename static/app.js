@@ -6,7 +6,7 @@
 const STORAGE_KEY_URL = "defter_api_base";
 const STORAGE_KEY_ID  = "defter_last_id";
 
-let API_BASE = localStorage.getItem(STORAGE_KEY_URL) || "http://localhost:8080/api";
+let API_BASE = localStorage.getItem(STORAGE_KEY_URL) || "/api";
 
 // Oturum durumu (sayfa yenilenince kaybolur — PIN hiçbir yerde saklanmaz)
 let session = { id: null, pin: null, isim: null, bakiye: 0 };
@@ -316,13 +316,19 @@ async function loadHistory(){
         label = islem.islem_tipi;
       }
 
+      const dovizMiktar = islem.doviz_miktar ? `${tl(islem.doviz_miktar)} ${islem.doviz_kodu || ""}` : null;
+      const metaLines = [formatDate(islem.tarih)];
+      if (dovizMiktar && (islem.islem_tipi === "ALIM" || islem.islem_tipi === "SATIM")) {
+        metaLines.push(dovizMiktar);
+      }
+
       const li = document.createElement("li");
       li.className = "ledger-row";
       li.innerHTML = `
         <span class="ledger-dot ${direction}"></span>
         <div class="ledger-body">
           <span class="ledger-type">${label}</span>
-          <span class="ledger-meta">${formatDate(islem.tarih)}</span>
+          <span class="ledger-meta">${metaLines.join(" • ")}</span>
         </div>
         <span class="ledger-amount ${direction}">${direction === "debit" ? "−" : "+"}₺${tl(islem.miktar_tl)}</span>
       `;

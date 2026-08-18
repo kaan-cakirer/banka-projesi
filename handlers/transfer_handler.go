@@ -28,7 +28,7 @@ func ParaGonder(w http.ResponseWriter, r *http.Request) {
 	var gonderenBakiye int
 	var gercekPin string
 
-	sorgu := "SELECT bakiye, pin FROM hesaplar WHERE id = ?"
+	sorgu := "SELECT bakiye, pin FROM hesaplar WHERE id = $1"
 	err = config.DB.QueryRow(sorgu, istek.GonderenID).Scan(&gonderenBakiye, &gercekPin)
 
 	if err != nil {
@@ -58,7 +58,7 @@ func ParaGonder(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// 1. Gönderenin bakiyesini düş
-	_, err = tx.Exec("UPDATE hesaplar SET bakiye = bakiye - ? WHERE id = ?", gonderilecekKurus, istek.GonderenID)
+	_, err = tx.Exec("UPDATE hesaplar SET bakiye = bakiye - $1 WHERE id = $2", gonderilecekKurus, istek.GonderenID)
 	if err != nil {
 		tx.Rollback()
 		utils.JSONResponse(w, http.StatusInternalServerError, false, "Gönderilen bakiye düşülürken hata oluştu", nil)
@@ -66,7 +66,7 @@ func ParaGonder(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// 2. Alıcının bakiyesini artır
-	sonuc, err := tx.Exec("UPDATE hesaplar SET bakiye = bakiye + ? WHERE id = ?", gonderilecekKurus, istek.AliciID)
+	sonuc, err := tx.Exec("UPDATE hesaplar SET bakiye = bakiye + $1 WHERE id = $2", gonderilecekKurus, istek.AliciID)
 	if err != nil {
 		tx.Rollback()
 		utils.JSONResponse(w, http.StatusInternalServerError, false, "Gönderilen bakiye yüklenirken hata oluştu", nil)
@@ -81,7 +81,7 @@ func ParaGonder(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// 3. İşlem geçmişine kaydet
-	islemSorgusu := "INSERT INTO islemler (gonderen_id, alici_id, miktar, islem_tipi) VALUES (?, ?, ?, ?)"
+	islemSorgusu := "INSERT INTO islemler (gonderen_id, alici_id, miktar, islem_tipi) VALUES ($1, $2, $3, $4)"
 	_, err = tx.Exec(islemSorgusu, istek.GonderenID, istek.AliciID, gonderilecekKurus, "TRANSFER")
 	if err != nil {
 		tx.Rollback()

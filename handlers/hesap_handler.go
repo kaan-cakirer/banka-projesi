@@ -26,7 +26,7 @@ func BakiyeSorgula(w http.ResponseWriter, r *http.Request) {
 	var bakiyeKurus int
 	var gercekPin string
 
-	sorgu := "SELECT isim, bakiye, pin FROM hesaplar WHERE id = ?"
+	sorgu := "SELECT isim, bakiye, pin FROM hesaplar WHERE id = $1"
 	err = config.DB.QueryRow(sorgu, istek.ID).Scan(&isim, &bakiyeKurus, &gercekPin)
 
 	if err != nil {
@@ -80,7 +80,7 @@ func HesapAc(w http.ResponseWriter, r *http.Request) {
 
 	baslangicKurus := int(istek.Bakiye * 100)
 
-	sorgu := "INSERT INTO hesaplar (isim, bakiye, pin) VALUES (?, ?, ?)"
+	sorgu := "INSERT INTO hesaplar (isim, bakiye, pin) VALUES ($1, $2, $3)"
 	sonuc, err := config.DB.Exec(sorgu, istek.Isim, baslangicKurus, istek.Pin)
 	if err != nil {
 		utils.JSONResponse(w, http.StatusInternalServerError, false, "Hesap oluşturulurken hata oluştu", nil)
@@ -115,7 +115,7 @@ func ParaYatir(w http.ResponseWriter, r *http.Request) {
 	yatirilacakKurus := int(istek.Miktar * 100)
 
 	// Bakiye artırma işlemi
-	sonuc, err := config.DB.Exec("UPDATE hesaplar SET bakiye = bakiye + ? WHERE id = ?", yatirilacakKurus, istek.ID)
+	sonuc, err := config.DB.Exec("UPDATE hesaplar SET bakiye = bakiye + $1 WHERE id = $2", yatirilacakKurus, istek.ID)
 	if err != nil {
 		utils.JSONResponse(w, http.StatusInternalServerError, false, "Para yatırılırken hata oluştu", nil)
 		return
@@ -128,7 +128,7 @@ func ParaYatir(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// İşlem geçmişine (islemler) ekleme
-	config.DB.Exec("INSERT INTO islemler (gonderen_id, alici_id, miktar, islem_tipi) VALUES (?, ?, ?, ?)", istek.ID, istek.ID, yatirilacakKurus, "YATIRMA")
+	config.DB.Exec("INSERT INTO islemler (gonderen_id, alici_id, miktar, islem_tipi) VALUES ($1, $2, $3, $4)", istek.ID, istek.ID, yatirilacakKurus, "YATIRMA")
 
 	islemDetay := map[string]any{
 		"hesap_id":         istek.ID,

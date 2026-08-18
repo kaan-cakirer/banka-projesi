@@ -32,7 +32,7 @@ func IslemGecmisi(w http.ResponseWriter, r *http.Request) {
 
 	// 1. PIN Kontrolü
 	var gercekPin string
-	err = config.DB.QueryRow("SELECT pin FROM hesaplar WHERE id = ?", istek.ID).Scan(&gercekPin)
+	err = config.DB.QueryRow("SELECT pin FROM hesaplar WHERE id = $1", istek.ID).Scan(&gercekPin)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			log.Println("❌ DEBUG HATA: Veritabanında bu ID bulunamadı:", istek.ID)
@@ -54,13 +54,13 @@ func IslemGecmisi(w http.ResponseWriter, r *http.Request) {
 
 	// 2. Son 10 işlemi, normal ve döviz işlemlerini birlikte çek
 	sorgu := `
-	SELECT id, gonderen_id, alici_id, miktar, islem_tipi, tarih, NULL as doviz_kodu
+	SELECT id, gonderen_id, alici_id, miktar, islem_tipi, tarih, NULL as doviz_kodu, NULL as doviz_miktar
 	FROM islemler
-	WHERE gonderen_id = ? OR alici_id = ?
+	WHERE gonderen_id = $1 OR alici_id = $2
 	UNION ALL
-	SELECT id, hesap_id as gonderen_id, NULL as alici_id, harcanan_tl_kurus as miktar, islem_tipi, tarih, doviz_kodu
+	SELECT id, hesap_id as gonderen_id, NULL as alici_id, harcanan_tl_kurus as miktar, islem_tipi, tarih, doviz_kodu, miktar_cent as doviz_miktar
 	FROM doviz_islemleri
-	WHERE hesap_id = ?
+	WHERE hesap_id = $3
 	ORDER BY tarih DESC
 	LIMIT 10`
 
@@ -79,6 +79,7 @@ func IslemGecmisi(w http.ResponseWriter, r *http.Request) {
 		var miktarKurus int
 		var aliciID sql.NullInt64
 		var dovizKodu sql.NullString
+		var dovizMiktarCent sql.NullInt64
 
 		err := satirlar.Scan(
 			&islem.ID,
@@ -88,6 +89,7 @@ func IslemGecmisi(w http.ResponseWriter, r *http.Request) {
 			&islem.IslemTipi,
 			&islem.Tarih,
 			&dovizKodu,
+			&dovizMiktarCent,
 		)
 		if err != nil {
 			log.Println("❌ DEBUG HATA: Satır Scan edilirken hata (Sütun tipleri uyuşuyor mu?):", err)
@@ -105,6 +107,12 @@ func IslemGecmisi(w http.ResponseWriter, r *http.Request) {
 			islem.DovizKodu = dovizKodu.String
 		} else {
 			islem.DovizKodu = ""
+		}
+
+		if dovizMiktarCent.Valid {
+			islem.DovizMiktar = float64(dovizMiktarCent.Int64) / 100.0
+		} else {
+			islem.DovizMiktar = 0
 		}
 
 		islem.MiktarTL = float64(miktarKurus) / 100.0

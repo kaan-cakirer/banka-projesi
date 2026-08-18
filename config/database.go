@@ -2,88 +2,80 @@ package config
 
 import (
 	"database/sql"
-	"fmt"
 	"log"
 
-	_ "modernc.org/sqlite"
+	_ "github.com/lib/pq" // PostgreSQL sürücüsü
 )
 
 var DB *sql.DB
 
 func InitDB() *sql.DB {
+	// PostgreSQL bağlantı adresi (Docker'da verdiğimiz bilgiler)
+	connStr := "user=postgres password=gizlisifre dbname=bankadb sslmode=disable host=localhost port=5433"
+
 	var err error
-
-	DB, err = sql.Open("sqlite", "banka.db")
+	DB, err = sql.Open("postgres", connStr)
 	if err != nil {
-		log.Fatal("Veritabanı Açılmadı: ", err)
-
+		log.Fatal("PostgreSQL'e bağlanılamadı: ", err)
 	}
+
 	err = DB.Ping()
 	if err != nil {
-		log.Fatal("Veritabanına Ulaşılamıyor: ", err)
+		log.Fatal("PostgreSQL veritabanına erişilemiyor (Docker çalışıyor mu?): ", err)
 	}
 
+	// 1. Hesaplar Tablosu (AUTOINCREMENT yerine SERIAL kullanıyoruz)
 	hesaplarTablosu := `
 	CREATE TABLE IF NOT EXISTS hesaplar (
-		id INTEGER PRIMARY KEY AUTOINCREMENT,
+		id SERIAL PRIMARY KEY,
 		isim TEXT NOT NULL,
-		bakiye INTEGER DEFAULT 0,
-		pin TEXT DEFAULT '1234'
+		bakiye INTEGER NOT NULL DEFAULT 0,
+		pin TEXT NOT NULL
 	);`
 
+	// 2. Transfer Geçmişi Tablosu
 	islemlerTablosu := `
 	CREATE TABLE IF NOT EXISTS islemler (
-		id INTEGER PRIMARY KEY AUTOINCREMENT,
+		id SERIAL PRIMARY KEY,
 		gonderen_id INTEGER,
 		alici_id INTEGER,
-		miktar INTEGER NOT NULL,
+		miktar_tl INTEGER NOT NULL,
 		islem_tipi TEXT NOT NULL,
-		tarih DATETIME DEFAULT CURRENT_TIMESTAMP
+		tarih TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 	);`
 
+	// 3. Döviz Varlıkları Tablosu
 	varliklarTablosu := `
-    CREATE TABLE IF NOT EXISTS varliklar (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        hesap_id INTEGER NOT NULL,
-        doviz_kodu TEXT NOT NULL, 
-        miktar INTEGER NOT NULL DEFAULT 0,
-        FOREIGN KEY(hesap_id) REFERENCES hesaplar(id),
-        UNIQUE(hesap_id, doviz_kodu)
-    );`
+	CREATE TABLE IF NOT EXISTS varliklar (
+		id SERIAL PRIMARY KEY,
+		hesap_id INTEGER NOT NULL REFERENCES hesaplar(id),
+		doviz_kodu TEXT NOT NULL, 
+		miktar INTEGER NOT NULL DEFAULT 0,
+		UNIQUE(hesap_id, doviz_kodu)
+	);`
 
+	// 4. Döviz İşlem Geçmişi Tablosu
 	dovizIslemleriTablosu := `
-    CREATE TABLE IF NOT EXISTS doviz_islemleri (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        hesap_id INTEGER NOT NULL,
-        doviz_kodu TEXT NOT NULL,
-        miktar_cent INTEGER NOT NULL, 
-        harcanan_tl_kurus INTEGER NOT NULL, 
-        kur_fiyati REAL NOT NULL,          
-        islem_tipi TEXT NOT NULL,          
-        tarih DATETIME DEFAULT CURRENT_TIMESTAMP,
-        FOREIGN KEY(hesap_id) REFERENCES hesaplar(id)
-    );`
+	CREATE TABLE IF NOT EXISTS doviz_islemleri (
+		id SERIAL PRIMARY KEY,
+		hesap_id INTEGER NOT NULL REFERENCES hesaplar(id),
+		doviz_kodu TEXT NOT NULL,
+		miktar_cent INTEGER NOT NULL,
+		harcanan_tl_kurus INTEGER NOT NULL,
+		kur_fiyati REAL NOT NULL,
+		islem_tipi TEXT NOT NULL,
+		tarih TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+	);`
 
-	_, err = DB.Exec(hesaplarTablosu)
-	if err != nil {
-		log.Fatal("Hesaplar tablosu oluşturulurken hata: ", err)
+	// Tabloları çalıştır
+	sorgular := []string{hesaplarTablosu, islemlerTablosu, varliklarTablosu, dovizIslemleriTablosu}
+	for _, sorgu := range sorgular {
+		_, err := DB.Exec(sorgu)
+		if err != nil {
+			log.Fatalf("Tablo oluşturulamadı: %v\nSorgu: %s", err, sorgu)
+		}
 	}
 
-	_, err = DB.Exec(islemlerTablosu)
-	if err != nil {
-		log.Fatal("İşlemler tablosu oluşturulurken hata: ", err)
-	}
-
-	_, err = DB.Exec(varliklarTablosu)
-	if err != nil {
-		log.Fatal("Varlıklar tablosu oluşturulurken hata: ", err)
-	}
-
-	_, err = DB.Exec(dovizIslemleriTablosu)
-	if err != nil {
-		log.Fatal("Döviz İşlemleri Tablosu Oluşturulurken Hata: ", err)
-	}
-
-	fmt.Println("Veritabanı Bağlantısı Başarıyla Kuruldu")
+	log.Println("🐘 PostgreSQL bağlantısı başarılı ve tablolar hazır!")
 	return DB
 }

@@ -1,198 +1,277 @@
-# 🏦 Finansal Backend REST API (Go & SQLite)
+# Banka Projesi (Go + PostgreSQL + Web UI)
 
-Sürdürülebilir, güvenli ve modern backend mimarisi prensipleriyle geliştirilmiş; **Go (Golang)** ve **SQLite** tabanlı bir **Finansal Bankacılık REST API** projesi.
+Go ile yazılmış, temel bankacılık işlemlerini ve döviz alım/satım akışını sunan bir REST API ve buna bağlı tek sayfa web arayüzü.
 
-Bu proje; bakiye yönetimi, hesap açma, transactional (ACID) para transferi ve detaylı dekont/işlem geçmişi gibi temel bankacılık operasyonlarını **JSON Body (POST)** ve **Standart REST API Yanıt Formatı** ile sunar.
+Proje şu anda PostgreSQL kullanır, API endpointleri /api altında çalışır ve static klasöründeki frontend doğrudan aynı sunucudan servis edilir.
 
----
+## Özellikler
 
-## 🚀 Öne Çıkan Özellikler
+- Hesap açma ve PIN ile bakiye doğrulama
+- Para yatırma
+- Hesaptan hesaba transfer (transaction ile)
+- Döviz alım ve döviz satım işlemleri
+- Hesaptaki döviz varlıklarını listeleme
+- Son 10 işlemi (TL + döviz işlemleri birleşik) listeleme
+- Standart JSON response formatı: success, message, data
 
-* **🔒 Güvenli Veri İletimi:** Hassas kullanıcı verileri (PIN, hesap id, transfer tutarları) URL parametrelerinde taşınmaz; tamamen `POST` metoduna bağlı HTTP Body (JSON) üzerinden işlenir.
-* **🛡️ Transactional Transfer (ACID):** Hesaptan hesaba para transferleri SQL Transaction (`tx.Begin()`, `Commit()`, `Rollback()`) mekanizmasıyla yönetilir. Olası bir sistem hatasında bakiye kaybı önlenir.
-* **📊 Hassas Bakiye Yönetimi:** Veritabanında bakiyeler `kuruş` (tamsayı/integer) cinsinden saklanarak floating-point (ondalık sayı) hesaplama hataları engellenir. İstemciye (Client) `TL` cinsinden sunulur.
-* **📜 Dekont & İşlem Geçmişi (`/gecmis`):** Kullanıcının dahil olduğu gelen/giden tüm transferler ve para yatırma işlemleri zaman damgasıyla listelenir.
-* **🎯 Standart JSON Response Formatı:** Tüm yanıtlar HTTP durum kodlarına (`200 OK`, `400 Bad Request`, `401 Unauthorized`, `404 Not Found`, `500 Internal Error`) uygun olarak merkezi bir JSON şablonunda dönülür.
+## Teknoloji
 
----
+- Go 1.26.5
+- PostgreSQL sürücüsü: github.com/lib/pq
+- Frontend: HTML + CSS + Vanilla JS (fetch)
 
-## 🛠️ Proje Mimarisi (Klasör Yapısı)
-
-Proje, sorumlulukların ayrılması (Separation of Concerns) ilkesine uygun olarak katmanlı bir yapıda kurgulanmıştır:
+## Proje Yapısı
 
 ```text
 banka-projesi/
+├── main.go
+├── go.mod
 ├── config/
-│   └── database.go      # SQLite bağlantısı ve tablo ilklendirmeleri (DDL)
-├── models/
-│   ├── hesap.go         # Hesap modeli ve hesap istek/yanıt struct'ları
-│   ├── islem.go         # İşlem (dekont) modeli ve transfer/geçmiş struct'ları
-│   └── response.go      # Standart APIResponse modeli
+│   └── database.go
 ├── handlers/
-│   ├── hesap_handler.go    # /bakiye, /hesap-ac, /para-yatir HTTP uç noktaları
-│   ├── transfer_handler.go # /para-gonder (Transaction) HTTP uç noktası
-│   └── gecmis_handler.go   # /gecmis (İşlem Dökümü) HTTP uç noktası
+│   ├── hesap_handler.go
+│   ├── transfer_handler.go
+│   ├── gecmis_handler.go
+│   ├── doviz_handler.go
+│   └── faiz_handler.go
+├── models/
+│   ├── hesap.go
+│   ├── islem.go
+│   ├── doviz.go
+│   └── response.go
+├── services/
+│   ├── doviz_service.go
+│   └── faiz_service.go
 ├── utils/
-│   └── response.go      # JSON çıktılarını merkezileştiren yardımcı paket
-├── main.go              # Rota tanımlamaları ve HTTP sunucusu başlatma
-└── banka.db             # Otomatik oluşturulan SQLite veritabanı
-📋 API Endpoints ve Kullanım Kılavuzu
-Tüm istekler POST metodu ile ve Content-Type: application/json başlığıyla gönderilmelidir.
+│   ├── response.go
+│   └── doviz.go
+└── static/
+    ├── index.html
+    ├── style.css
+    └── app.js
+```
 
-1. Bakiye Sorgulama
-Endpoint: POST /bakiye
+## Çalışma Mantığı
 
-Request Body:
+- Tüm API endpointleri POST kabul eder.
+- CORS middleware tüm endpointler için aktif (Access-Control-Allow-Origin: *).
+- Kuruş/cents bazlı integer saklama kullanılır, istemciye TL olarak dönülür.
+- Para transferi ve döviz işlemleri transaction ile yönetilir.
+- Frontend için root path static dosya sunar; /api ile başlayan eşleşmeyen pathler 404 döner.
 
-JSON
-{
-  "id": 1,
-  "pin": "1234"
-}
-Response (200 OK):
+## Çalıştırma
 
-JSON
-{
-  "success": true,
-  "message": "Bakiye başarıyla sorgulandı",
-  "data": {
-    "bakiye": 1500.5,
-    "id": 1,
-    "isim": "Kaan Çakırer"
-  }
-}
-2. Yeni Hesap Açma
-Endpoint: POST /hesap-ac
+1. PostgreSQL başlatın.
 
-Request Body:
+Örnek Docker komutu:
 
-JSON
+```bash
+docker run --name banka-postgres \
+  -e POSTGRES_PASSWORD=gizlisifre \
+  -e POSTGRES_DB=bankadb \
+  -p 5433:5432 \
+  -d postgres:16
+```
+
+2. Veritabanı bağlantısını kontrol edin.
+
+config/database.go içinde mevcut bağlantı:
+
+```text
+user=postgres password=gizlisifre dbname=bankadb sslmode=disable host=localhost port=5433
+```
+
+3. Projeyi çalıştırın.
+
+```bash
+go mod tidy
+go run .
+```
+
+Sunucu: http://localhost:8080
+
+Web arayüz: http://localhost:8080
+
+## API Endpointleri
+
+Tüm endpointler için header:
+
+```text
+Content-Type: application/json
+```
+
+1. Hesap Aç
+
+Endpoint:
+
+```text
+POST /api/hesap-ac
+```
+
+Body:
+
+```json
 {
   "isim": "Ahmet Yılmaz",
   "bakiye": 500.0,
   "pin": "4321"
 }
-Response (201 Created):
+```
 
-JSON
+2. Bakiye Sorgula
+
+Endpoint:
+
+```text
+POST /api/bakiye
+```
+
+Body:
+
+```json
 {
-  "success": true,
-  "message": "Hesap başarıyla oluşturuldu",
-  "data": {
-    "id": 2,
-    "isim": "Ahmet Yılmaz",
-    "bakiye": 500
-  }
+  "id": 1,
+  "pin": "4321"
 }
-3. Para Yatırma (ATM)
-Endpoint: POST /para-yatir
+```
 
-Request Body:
+3. Para Yatır
 
-JSON
+Endpoint:
+
+```text
+POST /api/para-yatir
+```
+
+Body:
+
+```json
 {
   "id": 1,
   "miktar": 250.0
 }
-Response (200 OK):
+```
 
-JSON
-{
-  "success": true,
-  "message": "Para yatırma işlemi başarılı",
-  "data": {
-    "hesap_id": 1,
-    "yatirilan_miktar": 250
-  }
-}
-4. Hesaptan Hesaba Para Transferi (EFT/Havale)
-Endpoint: POST /para-gonder
+4. Para Gönder
 
-Request Body:
+Endpoint:
 
-JSON
+```text
+POST /api/para-gonder
+```
+
+Body:
+
+```json
 {
   "gonderen_id": 1,
   "alici_id": 2,
   "miktar": 100.0,
-  "pin": "1234"
+  "pin": "4321"
 }
-Response (200 OK):
+```
 
-JSON
-{
-  "success": true,
-  "message": "Transfer işlemi başarıyla tamamlandı",
-  "data": {
-    "alici_id": 2,
-    "gonderen_id": 1,
-    "miktar": 100
-  }
-}
-5. Hesap İşlem Geçmişi (Dekont)
-Endpoint: POST /gecmis
+5. İşlem Geçmişi
 
-Request Body:
+Endpoint:
 
-JSON
+```text
+POST /api/gecmis
+```
+
+Body:
+
+```json
 {
   "id": 1,
-  "pin": "1234"
+  "pin": "4321"
 }
-Response (200 OK):
+```
 
-JSON
+6. Döviz Al
+
+Endpoint:
+
+```text
+POST /api/doviz-al
+```
+
+Body:
+
+```json
+{
+  "hesap_id": 1,
+  "doviz_kodu": "USD",
+  "miktar": 25.5,
+  "pin": "4321"
+}
+```
+
+7. Döviz Sat
+
+Endpoint:
+
+```text
+POST /api/doviz-sat
+```
+
+Body:
+
+```json
+{
+  "hesap_id": 1,
+  "doviz_kodu": "USD",
+  "miktar": 10.0,
+  "pin": "4321"
+}
+```
+
+8. Döviz Varlıkları
+
+Endpoint:
+
+```text
+POST /api/varliklar
+```
+
+Body:
+
+```json
+{
+  "id": 1,
+  "pin": "4321"
+}
+```
+
+## Standart Response Formatı
+
+Başarılı veya hatalı tüm yanıtlar tek formatta döner:
+
+```json
 {
   "success": true,
-  "message": "İşlem geçmişi başarıyla getirildi",
-  "data": [
-    {
-      "id": 3,
-      "gonderen_id": 1,
-      "alici_id": 2,
-      "miktar_tl": 100,
-      "islem_tipi": "TRANSFER",
-      "tarih": "2026-07-21 14:00:00"
-    },
-    {
-      "id": 2,
-      "gonderen_id": 1,
-      "alici_id": 1,
-      "miktar_tl": 250,
-      "islem_tipi": "YATIRMA",
-      "tarih": "2026-07-21 13:50:00"
-    }
-  ]
+  "message": "Açıklama",
+  "data": {}
 }
-⚡ Çalıştırma Kurulumu
-Repoyu klonlayın:
+```
 
-Bash
-git clone [https://github.com/kaan-cakirer/banka-projesi.git](https://github.com/kaan-cakirer/banka-projesi.git)
-cd banka-projesi
-Bağımlılıkları indirin (SQLite sürücüsü vb.):
+## Önemli Notlar
 
-Bash
-go mod tidy
-Uygulamayı başlatın:
+- static/app.js varsayılan olarak API_BASE = /api kullanır. Aynı origin dışında backend kullanacaksanız arayüzde ayarlar (dişli ikon) ile URL değiştirilebilir.
+- utils/doviz.go içinde kur bilgisi dış servisten çekilir: https://open.er-api.com/v6/latest/TRY
+- handlers/faiz_handler.go ve services altındaki dosyalar şu anda aktif iş mantığı içermeyen placeholder durumundadır.
+- Repository içinde banka.db dosyası bulunsa da aktif veritabanı PostgreSQL'dir.
 
-Bash
-go run .
-(Sunucu http://localhost:8080 portunda çalışmaya başlayacak ve ilk çalıştırmada banka.db otomatik kurulacaktır.)
+## Hızlı Test (curl)
 
-🗺️ Gelecek Yol Haritası (Roadmap)
-[x] ACID Standartlarında Bakiye Transferi
+```bash
+curl -X POST http://localhost:8080/api/hesap-ac \
+  -H "Content-Type: application/json" \
+  -d '{"isim":"Test Kullanici","bakiye":1000,"pin":"1234"}'
+```
 
-[x] PIN Kontrol Güvenlik Katmanı
-
-[x] REST API Mimarisi (POST + JSON Body)
-
-[x] İşlem Geçmişi (Dekont) Servisi
-
-[ ] Canlı Döviz Alım/Satım & Portföy Yönetimi (/doviz-al, /doviz-sat)
-
-[ ] Vadeli Mevduat & Faiz Hesabı Servisi
-
-[ ] JWT (JSON Web Token) İle Oturum Yönetimi
-
-[ ] Web Frontend Paneli (HTML / CSS / JS Fetch Entegrasyonu)
+```bash
+curl -X POST http://localhost:8080/api/bakiye \
+  -H "Content-Type: application/json" \
+  -d '{"id":1,"pin":"1234"}'
+```

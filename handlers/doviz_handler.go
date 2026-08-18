@@ -38,7 +38,7 @@ func DovizAl(w http.ResponseWriter, r *http.Request) {
 	var bakiye int
 	var gercekPin string
 
-	sorgu := "SELECT bakiye, pin FROM hesaplar WHERE id = ?"
+	sorgu := "SELECT bakiye, pin FROM hesaplar WHERE id = $1"
 	err = config.DB.QueryRow(sorgu, istek.HesapID).Scan(&bakiye, &gercekPin)
 	if err != nil {
 		if err == sql.ErrNoRows {
@@ -65,7 +65,7 @@ func DovizAl(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	_, err = tx.Exec("UPDATE hesaplar SET bakiye = bakiye - ? WHERE id = ?", harcanacakTLKurus, istek.HesapID)
+	_, err = tx.Exec("UPDATE hesaplar SET bakiye = bakiye - $1 WHERE id = $2", harcanacakTLKurus, istek.HesapID)
 	if err != nil {
 		tx.Rollback()
 		utils.JSONResponse(w, http.StatusInternalServerError, false, "TL bakiyesi düşülürken hata oluştu", nil)
@@ -74,7 +74,7 @@ func DovizAl(w http.ResponseWriter, r *http.Request) {
 
 	varlikSorgusu := `
 	INSERT INTO varliklar (hesap_id, doviz_kodu, miktar) 
-	VALUES (?, ?, ?) 
+	VALUES ($1, $2, $3) 
 	ON CONFLICT(hesap_id, doviz_kodu) 
 	DO UPDATE SET miktar = miktar + EXCLUDED.miktar`
 
@@ -86,7 +86,7 @@ func DovizAl(w http.ResponseWriter, r *http.Request) {
 	}
 	dekontSorgusu := `
 	INSERT INTO doviz_islemleri (hesap_id, doviz_kodu, miktar_cent, harcanan_tl_kurus, kur_fiyati, islem_tipi) 
-	VALUES (?, ?, ?, ?, ?, 'ALIM')`
+	VALUES ($1, $2, $3, $4, $5, 'ALIM')`
 
 	_, err = tx.Exec(dekontSorgusu, istek.HesapID, istek.DovizKodu, dovizCent, harcanacakTLKurus, kurOran)
 	if err != nil {
@@ -139,7 +139,7 @@ func DovizSat(w http.ResponseWriter, r *http.Request) {
 	var gercekPin string
 
 	err = config.DB.QueryRow(
-		"SELECT bakiye, pin FROM hesaplar WHERE id = ?",
+		"SELECT bakiye, pin FROM hesaplar WHERE id = $1",
 		istek.HesapID,
 	).Scan(&bakiye, &gercekPin)
 
@@ -161,7 +161,7 @@ func DovizSat(w http.ResponseWriter, r *http.Request) {
 	var mevcutDoviz int
 
 	err = config.DB.QueryRow(
-		"SELECT miktar FROM varliklar WHERE hesap_id = ? AND doviz_kodu = ?",
+		"SELECT miktar FROM varliklar WHERE hesap_id = $1 AND doviz_kodu = $2",
 		istek.HesapID,
 		istek.DovizKodu,
 	).Scan(&mevcutDoviz)
@@ -188,7 +188,7 @@ func DovizSat(w http.ResponseWriter, r *http.Request) {
 
 	// TL ekle
 	_, err = tx.Exec(
-		"UPDATE hesaplar SET bakiye = bakiye + ? WHERE id = ?",
+		"UPDATE hesaplar SET bakiye = bakiye + $1 WHERE id = $2",
 		kazanilanTLKurus,
 		istek.HesapID,
 	)
@@ -201,7 +201,7 @@ func DovizSat(w http.ResponseWriter, r *http.Request) {
 
 	// Döviz düş
 	_, err = tx.Exec(
-		"UPDATE varliklar SET miktar = miktar - ? WHERE hesap_id = ? AND doviz_kodu = ?",
+		"UPDATE varliklar SET miktar = miktar - $1 WHERE hesap_id = $2 AND doviz_kodu = $3",
 		dovizCent,
 		istek.HesapID,
 		istek.DovizKodu,
@@ -215,7 +215,7 @@ func DovizSat(w http.ResponseWriter, r *http.Request) {
 
 	// Sıfır kaldıysa sil
 	_, err = tx.Exec(
-		"DELETE FROM varliklar WHERE hesap_id = ? AND doviz_kodu = ? AND miktar = 0",
+		"DELETE FROM varliklar WHERE hesap_id = $1 AND doviz_kodu = $2 AND miktar = 0",
 		istek.HesapID,
 		istek.DovizKodu,
 	)
@@ -230,7 +230,7 @@ func DovizSat(w http.ResponseWriter, r *http.Request) {
 	_, err = tx.Exec(
 		`INSERT INTO doviz_islemleri
 		(hesap_id, doviz_kodu, miktar_cent, harcanan_tl_kurus, kur_fiyati, islem_tipi)
-		VALUES (?, ?, ?, ?, ?, 'SATIM')`,
+		VALUES ($1, $2, $3, $4, $5, 'SATIM')`,
 		istek.HesapID,
 		istek.DovizKodu,
 		dovizCent,
@@ -279,14 +279,14 @@ func VarliklariGetir(w http.ResponseWriter, r *http.Request) {
 
 	// 1. PIN Doğrulaması
 	var gercekPin string
-	err = config.DB.QueryRow("SELECT pin FROM hesaplar WHERE id = ?", istek.ID).Scan(&gercekPin)
+	err = config.DB.QueryRow("SELECT pin FROM hesaplar WHERE id = $1", istek.ID).Scan(&gercekPin)
 	if err != nil || gercekPin != istek.Pin {
 		utils.JSONResponse(w, http.StatusUnauthorized, false, "Hatalı PIN veya hesap bulunamadı", nil)
 		return
 	}
 
 	// 2. Kullanıcının Döviz Varlıklarını Sorgula
-	rows, err := config.DB.Query("SELECT id, hesap_id, doviz_kodu, miktar FROM varliklar WHERE hesap_id = ?", istek.ID)
+	rows, err := config.DB.Query("SELECT id, hesap_id, doviz_kodu, miktar FROM varliklar WHERE hesap_id = $1", istek.ID)
 	if err != nil {
 		utils.JSONResponse(w, http.StatusInternalServerError, false, "Varlıklar sorgulanırken hata oluştu", nil)
 		return
