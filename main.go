@@ -8,6 +8,8 @@ import (
 
 	"banka-projesi/config"
 	"banka-projesi/handlers"
+	"banka-projesi/repository"
+	"banka-projesi/usecase"
 )
 
 // corsMiddleware: Arayüzden (Frontend) gelen isteklere CORS izni sağlar
@@ -27,11 +29,15 @@ func corsMiddleware(next http.HandlerFunc) http.HandlerFunc {
 
 func main() {
 	// Veritabanı bağlantısı
-	config.InitDB()
+	db := config.InitDB()
+
+	hesapRepo := repository.NewHesapRepository(db)
+	hesapUsecase := usecase.NewHesapUsecase(hesapRepo)
+	hesapHandler := handlers.NewHesapHandler(hesapUsecase)
 
 	// 1. API Endpoints
-	http.HandleFunc("/api/hesap-ac", corsMiddleware(handlers.HesapAc))
-	http.HandleFunc("/api/bakiye", corsMiddleware(handlers.BakiyeSorgula))
+	http.HandleFunc("/api/hesap-ac", corsMiddleware(hesapHandler.HesapAc))
+	http.HandleFunc("/api/bakiye", corsMiddleware(hesapHandler.BakiyeSorgula))
 	http.HandleFunc("/api/para-yatir", corsMiddleware(handlers.ParaYatir))
 	http.HandleFunc("/api/para-gonder", corsMiddleware(handlers.ParaGonder))
 	http.HandleFunc("/api/gecmis", corsMiddleware(handlers.IslemGecmisi))
