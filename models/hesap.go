@@ -25,4 +25,5 @@ type HesapAcIstegi struct {
 type ParaYatirIstegi struct {
 	ID     int     `json:"id"`
 	Miktar float64 `json:"miktar"`
+	Pin    string  `json:"pin,omitempty"`
 }

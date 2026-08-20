@@ -55,7 +55,7 @@
             </label>
             <label class="field">
               <span class="field-label">PIN</span>
-              <input class="field-input mono" type="password" inputmode="numeric" maxlength="4" id="login-pin" placeholder="••••" required>
+              <input class="field-input mono" type="password" inputmode="numeric" minlength="4" maxlength="4" pattern="\\d{4}" id="login-pin" data-pin="true" placeholder="••••" required>
             </label>
             <button class="btn btn-primary btn-block" type="submit">
               <span class="btn-label">Giriş Yap</span>
@@ -81,7 +81,7 @@
               </label>
               <label class="field">
                 <span class="field-label">PIN</span>
-                <input class="field-input mono" type="password" inputmode="numeric" maxlength="4" id="create-pin" placeholder="1234">
+                <input class="field-input mono" type="password" inputmode="numeric" minlength="4" maxlength="4" pattern="\\d{4}" id="create-pin" data-pin="true" placeholder="1234">
               </label>
             </div>
             <button class="btn btn-secondary btn-block" type="submit">
@@ -136,6 +136,10 @@
             <span class="field-label">Miktar (₺)</span>
             <input class="field-input mono" type="number" min="0.01" step="0.01" id="yatir-miktar" placeholder="0.00" required>
           </label>
+          <label class="field">
+            <span class="field-label">PIN (onay)</span>
+            <input class="field-input mono" type="password" inputmode="numeric" minlength="4" maxlength="4" pattern="\\d{4}" id="yatir-pin" data-pin="true" placeholder="••••" required>
+          </label>
           <button class="btn btn-primary btn-block" type="submit">
             <span class="btn-label">Yatır</span>
             <span class="btn-spinner" hidden></span>
@@ -158,7 +162,7 @@
           </label>
           <label class="field">
             <span class="field-label">PIN (onay)</span>
-            <input class="field-input mono" type="password" inputmode="numeric" maxlength="4" id="gonder-pin" placeholder="••••" required>
+            <input class="field-input mono" type="password" inputmode="numeric" minlength="4" maxlength="4" pattern="\\d{4}" id="gonder-pin" data-pin="true" placeholder="••••" required>
           </label>
           <button class="btn btn-primary btn-block" type="submit">
             <span class="btn-label">Gönder</span>
@@ -198,7 +202,7 @@
           </label>
           <label class="field">
             <span class="field-label">PIN (onay)</span>
-            <input class="field-input mono" type="password" inputmode="numeric" maxlength="4" id="doviz-pin" placeholder="••••" required>
+            <input class="field-input mono" type="password" inputmode="numeric" minlength="4" maxlength="4" pattern="\\d{4}" id="doviz-pin" data-pin="true" placeholder="••••" required>
           </label>
           <button class="btn btn-primary btn-block" type="submit">
             <span class="btn-label" id="doviz-submit-label">Döviz Al</span>

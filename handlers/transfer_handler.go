@@ -81,7 +81,7 @@ func ParaGonder(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// 3. İşlem geçmişine kaydet
-	islemSorgusu := "INSERT INTO islemler (gonderen_id, alici_id, miktar, islem_tipi) VALUES ($1, $2, $3, $4)"
+	islemSorgusu := "INSERT INTO islemler (gonderen_id, alici_id, miktar_tl, islem_tipi) VALUES ($1, $2, $3, $4)"
 	_, err = tx.Exec(islemSorgusu, istek.GonderenID, istek.AliciID, gonderilecekKurus, "TRANSFER")
 	if err != nil {
 		tx.Rollback()

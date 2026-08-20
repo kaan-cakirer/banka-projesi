@@ -28,7 +28,7 @@ func IslemGecmisi(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	log.Printf("🔍 DEBUG: Okunan İstek -> Hesap ID: %d, PIN: %s\n", istek.ID, istek.Pin)
+	log.Printf("🔍 DEBUG: Okunan İstek -> Hesap ID: %d\n", istek.ID)
 
 	// 1. PIN Kontrolü
 	var gercekPin string
@@ -45,7 +45,7 @@ func IslemGecmisi(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if istek.Pin != gercekPin {
-		log.Printf("❌ DEBUG HATA: PIN eşleşmedi! Gelen: %s, Gerçek: %s\n", istek.Pin, gercekPin)
+		log.Printf("❌ DEBUG HATA: PIN eşleşmedi! Hesap ID: %d\n", istek.ID)
 		utils.JSONResponse(w, http.StatusUnauthorized, false, "Hatalı PIN Kodu! İşlem geçmişi görüntülenemez", nil)
 		return
 	}
@@ -54,7 +54,7 @@ func IslemGecmisi(w http.ResponseWriter, r *http.Request) {
 
 	// 2. Son 10 işlemi, normal ve döviz işlemlerini birlikte çek
 	sorgu := `
-	SELECT id, gonderen_id, alici_id, miktar, islem_tipi, tarih, NULL as doviz_kodu, NULL as doviz_miktar
+	SELECT id, gonderen_id, alici_id, miktar_tl as miktar, islem_tipi, tarih, NULL as doviz_kodu, NULL as doviz_miktar
 	FROM islemler
 	WHERE gonderen_id = $1 OR alici_id = $2
 	UNION ALL

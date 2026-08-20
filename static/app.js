@@ -15,6 +15,17 @@ let session = { id: null, pin: null, isim: null, bakiye: 0 };
 const $ = (sel) => document.querySelector(sel);
 const $$ = (sel) => document.querySelectorAll(sel);
 
+function normalizePin(value){
+  return String(value || "").replace(/\D/g, "").slice(0, 4);
+}
+
+function ensureValidPin(pin){
+  if (!/^\d{4}$/.test(pin)) {
+    throw new Error("PIN 4 haneli sayısal olmalıdır.");
+  }
+  return pin;
+}
+
 function tl(amount){
   return Number(amount).toLocaleString("tr-TR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
@@ -38,6 +49,12 @@ function setBusy(form, busy){
   btn.disabled = busy;
   btn.querySelector(".btn-spinner").hidden = !busy;
 }
+
+$$('input[data-pin="true"]').forEach((input) => {
+  input.addEventListener("input", () => {
+    input.value = normalizePin(input.value);
+  });
+});
 
 // Go backend'ine POST atan tek merkezi fonksiyon.
 async function api(path, body){
@@ -132,7 +149,7 @@ $("#form-login").addEventListener("submit", async (e) => {
   e.preventDefault();
   const form = e.target;
   const id = Number($("#login-id").value);
-  const pin = $("#login-pin").value;
+  const pin = ensureValidPin(normalizePin($("#login-pin").value));
 
   setBusy(form, true);
   try{
@@ -155,7 +172,8 @@ $("#form-create").addEventListener("submit", async (e) => {
   const form = e.target;
   const isim = $("#create-isim").value.trim();
   const bakiye = Number($("#create-bakiye").value || 0);
-  const pin = $("#create-pin").value || "1234";
+  const createPinRaw = normalizePin($("#create-pin").value);
+  const pin = createPinRaw ? ensureValidPin(createPinRaw) : "1234";
 
   setBusy(form, true);
   try{
@@ -217,10 +235,11 @@ $("#form-yatir").addEventListener("submit", async (e) => {
   e.preventDefault();
   const form = e.target;
   const miktar = Number($("#yatir-miktar").value);
+  const pin = ensureValidPin(normalizePin($("#yatir-pin").value || session.pin));
 
   setBusy(form, true);
   try{
-    await api("/para-yatir", { id: session.id, miktar });
+    await api("/para-yatir", { id: session.id, miktar, pin });
     await refreshDashboardData();
     showToast(`₺${tl(miktar)} yatırıldı.`, "success");
     form.reset();
@@ -237,7 +256,7 @@ $("#form-gonder").addEventListener("submit", async (e) => {
   const form = e.target;
   const alici_id = Number($("#gonder-alici").value);
   const miktar = Number($("#gonder-miktar").value);
-  const pin = $("#gonder-pin").value;
+  const pin = ensureValidPin(normalizePin($("#gonder-pin").value));
 
   setBusy(form, true);
   try{
@@ -264,7 +283,7 @@ $("#form-doviz").addEventListener("submit", async (e) => {
   const islem = $("#doviz-islem").value;
   const kod = $("#doviz-kod").value.toUpperCase();
   const miktar = Number($("#doviz-miktar").value);
-  const pin = $("#doviz-pin").value || session.pin;
+  const pin = ensureValidPin(normalizePin($("#doviz-pin").value || session.pin));
 
   setBusy(form, true);
   try{
