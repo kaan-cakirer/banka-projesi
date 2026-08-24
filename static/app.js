@@ -305,7 +305,7 @@ async function loadHistory(){
   list.innerHTML = "";
 
   try{
-    const data = await api("/gecmis", { id: session.id, pin: session.pin });
+    const data = await api("/islem-gecmisi", { id: session.id, pin: session.pin });
     if (!data || data.length === 0){
       empty.hidden = false;
       return;

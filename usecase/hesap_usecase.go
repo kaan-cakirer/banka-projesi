@@ -2,6 +2,7 @@ package usecase
 
 import (
 	"errors"
+	"math"
 
 	"banka-projesi/models"
 	"banka-projesi/repository"
@@ -17,6 +18,7 @@ var (
 	ErrOlusturmaHatasi = errors.New("hesap oluşturulurken hata oluştu")
 	ErrGecersizMiktar  = errors.New("geçersiz miktar")
 	ErrBasarisizIslem  = errors.New("işlem başarasız")
+	ErrGecmisAlinamadı = errors.New("geçmiş alınırken hata oluştu")
 )
 
 // HesapUsecase: iş kurallarının interface'i.
@@ -25,6 +27,7 @@ type HesapUsecase interface {
 	HesapAc(isim string, bakiyeTL float64, pin string) (*models.Hesap, error)
 	BakiyeSorgula(id int, pin string) (*models.Hesap, error)
 	ParaYatir(id int, miktarTL float64, pin string) (*models.Hesap, error)
+	IslemSorgula(id int, pin string) ([]models.Islem, error)
 }
 
 type hesapUsecase struct {
@@ -51,7 +54,7 @@ func (u *hesapUsecase) HesapAc(isim string, bakiyeTL float64, pin string) (*mode
 		return nil, ErrNegatifBakiye
 	}
 
-	bakiyeKurus := int64(bakiyeTL * 100)
+	bakiyeKurus := int64(math.Round(bakiyeTL * 100))
 
 	yeniID, err := u.repo.Create(isim, bakiyeKurus, pin)
 	if err != nil {
@@ -98,7 +101,7 @@ func (u *hesapUsecase) ParaYatir(id int, miktarTL float64, pin string) (*models.
 		return nil, ErrHataliPin
 	}
 
-	miktarKurus := int64(miktarTL * 100)
+	miktarKurus := int64(math.Round(miktarTL * 100))
 
 	if err := u.repo.BakiyeArttir(id, miktarKurus); err != nil {
 		return nil, ErrBasarisizIslem
@@ -109,5 +112,24 @@ func (u *hesapUsecase) ParaYatir(id int, miktarTL float64, pin string) (*models.
 		Isim:   kayit.Isim,
 		Bakiye: float64(kayit.BakiyeKurus)/100 + miktarTL,
 	}, nil
+}
 
+func (u *hesapUsecase) IslemSorgula(id int, pin string) ([]models.Islem, error) {
+
+	kayit, err := u.repo.GetByID(id)
+
+	if err != nil {
+		return nil, ErrHesapBulunamadi
+	}
+
+	if pin != kayit.Pin {
+		return nil, ErrHataliPin
+	}
+
+	islemler, err := u.repo.IslemGecmisi(id)
+
+	if err != nil {
+		return nil, ErrGecmisAlinamadı
+	}
+	return islemler, nil
 }

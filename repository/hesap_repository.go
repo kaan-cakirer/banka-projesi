@@ -1,6 +1,7 @@
 package repository
 
 import (
+	"banka-projesi/models"
 	"database/sql"
 	"errors"
 )
@@ -21,6 +22,7 @@ type HesapRepository interface {
 	Create(isim string, bakiyeKurus int64, pin string) (int, error)
 	GetByID(id int) (*HesapKaydi, error)
 	BakiyeArttir(id int, miktarKurus int64) error
+	IslemGecmisi(id int) ([]models.Islem, error)
 }
 
 type postgresHesapRepository struct {
@@ -86,4 +88,63 @@ func (r *postgresHesapRepository) BakiyeArttir(id int, miktarKurus int64) error 
 	}
 
 	return nil
+}
+
+func (r *postgresHesapRepository) IslemGecmisi(id int) ([]models.Islem, error) {
+	sorgu := `
+	SELECT id, gonderen_id, alici_id, miktar_tl as miktar, islem_tipi, tarih, NULL as doviz_kodu, NULL as doviz_miktar
+	FROM islemler
+	WHERE gonderen_id = $1 OR alici_id = $2
+	UNION ALL
+	SELECT id, hesap_id as gonderen_id, NULL as alici_id, harcanan_tl_kurus as miktar, islem_tipi, tarih, doviz_kodu, miktar_cent as doviz_miktar
+	FROM doviz_islemleri
+	WHERE hesap_id = $3
+	ORDER BY tarih DESC
+	LIMIT 10`
+	satirlar, err := r.db.Query(sorgu, id, id, id)
+	if err != nil {
+		return nil, err
+	}
+	defer satirlar.Close()
+
+	var islemler []models.Islem
+
+	for satirlar.Next() {
+		var (
+			islemID     int
+			gonderenID  int
+			aliciID     sql.NullInt64
+			miktarKurus int64
+			islemTipi   string
+			tarih       string
+			dovizKodu   sql.NullString
+			dovizMiktar sql.NullFloat64
+		)
+		if err := satirlar.Scan(&islemID, &gonderenID, &aliciID, &miktarKurus, &islemTipi, &tarih, &dovizKodu, &dovizMiktar); err != nil {
+			return nil, err
+		}
+		islem := models.Islem{
+			ID:         islemID,
+			GonderenID: gonderenID,
+			MiktarTL:   float64(miktarKurus) / 100.0,
+			IslemTipi:  islemTipi,
+			Tarih:      tarih,
+		}
+
+		if aliciID.Valid {
+			islem.AliciID = int(aliciID.Int64)
+		}
+		if dovizKodu.Valid {
+			islem.DovizKodu = dovizKodu.String
+		}
+		if dovizMiktar.Valid {
+			islem.DovizMiktar = dovizMiktar.Float64 / 100.0
+		}
+		islemler = append(islemler, islem)
+	}
+	if err := satirlar.Err(); err != nil {
+		return nil, err
+	}
+	return islemler, nil
+
 }

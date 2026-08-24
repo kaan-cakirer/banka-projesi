@@ -68,17 +68,25 @@ func (h *HesapHandler) BakiyeSorgula(w http.ResponseWriter, r *http.Request) {
 }
 
 // statusFromError: usecase'in sentinel error'larını HTTP status koduna çevirir.
-// Yeni bir usecase hatası eklediğinde buraya bir case eklemen yeterli.
 func statusFromError(err error) int {
 	switch {
+	// 1. Kullanıcının eksik/yanlış veri girdiği durumlar (400 Bad Request)
 	case errors.Is(err, usecase.ErrGecersizIsim),
 		errors.Is(err, usecase.ErrNegatifBakiye),
 		errors.Is(err, usecase.ErrGecersizMiktar):
 		return http.StatusBadRequest
+
+	// 2. PIN Yanlışsa (401 Unauthorized)
 	case errors.Is(err, usecase.ErrHataliPin):
 		return http.StatusUnauthorized
+
+	// 3. Hesap DB'de yoksa (404 Not Found)
 	case errors.Is(err, usecase.ErrHesapBulunamadi):
 		return http.StatusNotFound
+
+	// 4. Veritabanı çökmesi, işlem başarısızlığı gibi sistem hataları (500 Internal Server Error)
+	// ErrBasarisizIslem, ErrOlusturmaHatasi, ErrGecmisAlinamadı gibi tanımladığınız
+	// diğer tüm hatalar otomatik olarak bu 'default' bloğuna düşüp 500 dönecektir.
 	default:
 		return http.StatusInternalServerError
 	}
@@ -105,4 +113,29 @@ func (h *HesapHandler) ParaYatir(w http.ResponseWriter, r *http.Request) {
 	}
 
 	utils.JSONResponse(w, http.StatusOK, true, "Para yatırma işlemi başarılı", yatirma)
+}
+
+// IslemGecmisi: POST /api/islem-gecmisi
+func (h *HesapHandler) IslemGecmisi(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		utils.JSONResponse(w, http.StatusMethodNotAllowed, false, "Sadece POST istekleri kabul edilir", nil)
+		return
+	}
+
+	var istek models.GecmisIstegi
+	if err := json.NewDecoder(r.Body).Decode(&istek); err != nil {
+		utils.JSONResponse(w, http.StatusBadRequest, false, "Geçersiz JSON verisi", nil)
+		return
+	}
+
+	// Usecase'i çağırıyoruz
+	islemler, err := h.usecase.IslemSorgula(istek.ID, istek.Pin)
+	if err != nil {
+		// Zaten yazdığınız harika yardımcı fonksiyonu kullanıyoruz!
+		status := statusFromError(err)
+		utils.JSONResponse(w, status, false, err.Error(), nil)
+		return
+	}
+
+	utils.JSONResponse(w, http.StatusOK, true, "İşlem geçmişi başarıyla getirildi", islemler)
 }
