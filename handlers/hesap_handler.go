@@ -84,6 +84,10 @@ func statusFromError(err error) int {
 	case errors.Is(err, usecase.ErrHesapBulunamadi):
 		return http.StatusNotFound
 
+	// 3b. Yetersiz bakiye (400 Bad Request)
+	case errors.Is(err, usecase.ErrYetersizBakiye):
+		return http.StatusBadRequest
+
 	// 4. Veritabanı çökmesi, işlem başarısızlığı gibi sistem hataları (500 Internal Server Error)
 	// ErrBasarisizIslem, ErrOlusturmaHatasi, ErrGecmisAlinamadı gibi tanımladığınız
 	// diğer tüm hatalar otomatik olarak bu 'default' bloğuna düşüp 500 dönecektir.
@@ -113,6 +117,28 @@ func (h *HesapHandler) ParaYatir(w http.ResponseWriter, r *http.Request) {
 	}
 
 	utils.JSONResponse(w, http.StatusOK, true, "Para yatırma işlemi başarılı", yatirma)
+}
+
+func (h *HesapHandler) ParaCek(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		utils.JSONResponse(w, http.StatusMethodNotAllowed, false, "Sadece POST istekleri kabul edilir", nil)
+		return
+	}
+
+	var istek models.ParaYatirIstegi
+	if err := json.NewDecoder(r.Body).Decode(&istek); err != nil {
+		utils.JSONResponse(w, http.StatusBadRequest, false, "Geçersiz JSON verisi", nil)
+		return
+	}
+
+	cekme, err := h.usecase.ParaCek(istek.ID, istek.Miktar, istek.Pin)
+	if err != nil {
+		status := statusFromError(err)
+		utils.JSONResponse(w, status, false, err.Error(), nil)
+		return
+	}
+
+	utils.JSONResponse(w, http.StatusOK, true, "Para çekme işlemi başarılı", cekme)
 }
 
 // IslemGecmisi: POST /api/islem-gecmisi

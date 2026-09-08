@@ -250,6 +250,26 @@ $("#form-yatir").addEventListener("submit", async (e) => {
   }
 });
 
+// ---------- para çekme ----------
+$("#form-cek").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const form = e.target;
+  const miktar = Number($("#cek-miktar").value);
+  const pin = ensureValidPin(normalizePin($("#cek-pin").value || session.pin));
+
+  setBusy(form, true);
+  try{
+    await api("/para-cek", { id: session.id, miktar, pin });
+    await refreshDashboardData();
+    showToast(`₺${tl(miktar)} çekildi.`, "success");
+    form.reset();
+  } catch(err){
+    showToast(err.message, "error");
+  } finally{
+    setBusy(form, false);
+  }
+});
+
 // ---------- para gönderme ----------
 $("#form-gonder").addEventListener("submit", async (e) => {
   e.preventDefault();
@@ -319,6 +339,9 @@ async function loadHistory(){
       if (islem.islem_tipi === "YATIRMA") {
         label = "Para Yatırma";
         direction = "credit";
+      } else if (islem.islem_tipi === "ÇEKME") {
+        label = "Para Çekme";
+        direction = "debit";
       } else if (islem.islem_tipi === "TRANSFER") {
         const isOutgoing = islem.gonderen_id === session.id;
         direction = isOutgoing ? "debit" : "credit";

@@ -39,6 +39,7 @@ func main() {
 	http.HandleFunc("/api/hesap-ac", corsMiddleware(hesapHandler.HesapAc))
 	http.HandleFunc("/api/bakiye", corsMiddleware(hesapHandler.BakiyeSorgula))
 	http.HandleFunc("/api/para-yatir", corsMiddleware(hesapHandler.ParaYatir))
+	http.HandleFunc("/api/para-cek", corsMiddleware(hesapHandler.ParaCek))
 	http.HandleFunc("/api/islem-gecmisi", corsMiddleware(hesapHandler.IslemGecmisi))
 	http.HandleFunc("/api/para-gonder", corsMiddleware(handlers.ParaGonder))
 	http.HandleFunc("/api/doviz-al", corsMiddleware(handlers.DovizAl))

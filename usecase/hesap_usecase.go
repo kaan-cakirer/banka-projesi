@@ -19,6 +19,7 @@ var (
 	ErrGecersizMiktar  = errors.New("geçersiz miktar")
 	ErrBasarisizIslem  = errors.New("işlem başarasız")
 	ErrGecmisAlinamadı = errors.New("geçmiş alınırken hata oluştu")
+	ErrYetersizBakiye  = errors.New("yetersiz bakiye")
 )
 
 // HesapUsecase: iş kurallarının interface'i.
@@ -27,6 +28,7 @@ type HesapUsecase interface {
 	HesapAc(isim string, bakiyeTL float64, pin string) (*models.Hesap, error)
 	BakiyeSorgula(id int, pin string) (*models.Hesap, error)
 	ParaYatir(id int, miktarTL float64, pin string) (*models.Hesap, error)
+	ParaCek(id int, miktarTL float64, pin string) (*models.Hesap, error)
 	IslemSorgula(id int, pin string) ([]models.Islem, error)
 }
 
@@ -111,6 +113,38 @@ func (u *hesapUsecase) ParaYatir(id int, miktarTL float64, pin string) (*models.
 		ID:     kayit.ID,
 		Isim:   kayit.Isim,
 		Bakiye: float64(kayit.BakiyeKurus)/100 + miktarTL,
+	}, nil
+}
+
+func (u *hesapUsecase) ParaCek(id int, miktarTL float64, pin string) (*models.Hesap, error) {
+
+	if miktarTL <= 0 {
+		return nil, ErrGecersizMiktar
+	}
+
+	kayit, err := u.repo.GetByID(id)
+	if err != nil {
+		return nil, ErrHesapBulunamadi
+	}
+
+	if kayit.Pin != pin {
+		return nil, ErrHataliPin
+	}
+
+	miktarKurus := int64(math.Round(miktarTL * 100))
+
+	if kayit.BakiyeKurus < miktarKurus {
+		return nil, ErrYetersizBakiye
+	}
+
+	if err := u.repo.BakiyeAzalt(id, miktarKurus); err != nil {
+		return nil, ErrBasarisizIslem
+	}
+
+	return &models.Hesap{
+		ID:     kayit.ID,
+		Isim:   kayit.Isim,
+		Bakiye: float64(kayit.BakiyeKurus)/100 - miktarTL,
 	}, nil
 }
 

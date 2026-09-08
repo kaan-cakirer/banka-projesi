@@ -122,6 +122,7 @@
       <!-- Sekmeler -->
       <nav class="tabs" role="tablist">
         <button class="tab active" data-tab="yatir" role="tab" aria-selected="true">Para Yatır</button>
+        <button class="tab" data-tab="cek" role="tab" aria-selected="false">Para Çek</button>
         <button class="tab" data-tab="gonder" role="tab" aria-selected="false">Para Gönder</button>
         <button class="tab" data-tab="doviz" role="tab" aria-selected="false">Döviz</button>
         <button class="tab" data-tab="gecmis" role="tab" aria-selected="false">İşlem Geçmişi</button>
@@ -142,6 +143,26 @@
           </label>
           <button class="btn btn-primary btn-block" type="submit">
             <span class="btn-label">Yatır</span>
+            <span class="btn-spinner" hidden></span>
+          </button>
+        </form>
+      </div>
+
+      <!-- Panel: Para Çek -->
+      <div class="panel card" data-panel="cek" hidden>
+        <div class="card-eyebrow">Nakit çekme</div>
+        <h2 class="card-title-sm">Hesabından para çek</h2>
+        <form id="form-cek" novalidate>
+          <label class="field">
+            <span class="field-label">Miktar (₺)</span>
+            <input class="field-input mono" type="number" min="0.01" step="0.01" id="cek-miktar" placeholder="0.00" required>
+          </label>
+          <label class="field">
+            <span class="field-label">PIN (onay)</span>
+            <input class="field-input mono" type="password" inputmode="numeric" minlength="4" maxlength="4" pattern="\\d{4}" id="cek-pin" data-pin="true" placeholder="••••" required>
+          </label>
+          <button class="btn btn-primary btn-block" type="submit">
+            <span class="btn-label">Çek</span>
             <span class="btn-spinner" hidden></span>
           </button>
         </form>
