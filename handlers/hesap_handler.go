@@ -103,7 +103,7 @@ func (h *HesapHandler) ParaYatir(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var istek models.ParaYatirIstegi
+	var istek models.MiktarIstegi
 	if err := json.NewDecoder(r.Body).Decode(&istek); err != nil {
 		utils.JSONResponse(w, http.StatusBadRequest, false, "Geçersiz JSON verisi", nil)
 		return
@@ -125,7 +125,7 @@ func (h *HesapHandler) ParaCek(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var istek models.ParaYatirIstegi
+	var istek models.MiktarIstegi
 	if err := json.NewDecoder(r.Body).Decode(&istek); err != nil {
 		utils.JSONResponse(w, http.StatusBadRequest, false, "Geçersiz JSON verisi", nil)
 		return

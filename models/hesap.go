@@ -21,8 +21,8 @@ type HesapAcIstegi struct {
 	Pin    string  `json:"pin"`
 }
 
-// POST /para-yatir için gelen JSON gövdesi
-type ParaYatirIstegi struct {
+// POST /para-yatir ve POST /para-cek için gelen JSON gövdesi
+type MiktarIstegi struct {
 	ID     int     `json:"id"`
 	Miktar float64 `json:"miktar"`
 	Pin    string  `json:"pin,omitempty"`
