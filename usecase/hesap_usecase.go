@@ -11,15 +11,17 @@ import (
 // Sentinel error'lar: handler bunları errors.Is ile yakalayıp doğru HTTP
 // status kodunu seçecek. Mesaj metnine bakıp karar vermekten kaçınıyoruz.
 var (
-	ErrGecersizIsim    = errors.New("lütfen geçerli bir isim giriniz")
-	ErrNegatifBakiye   = errors.New("başlangıç bakiyesi negatif olamaz")
-	ErrHesapBulunamadi = errors.New("hesap bulunamadı")
-	ErrHataliPin       = errors.New("hatalı pin kodu")
-	ErrOlusturmaHatasi = errors.New("hesap oluşturulurken hata oluştu")
-	ErrGecersizMiktar  = errors.New("geçersiz miktar")
-	ErrBasarisizIslem  = errors.New("işlem başarasız")
-	ErrGecmisAlinamadı = errors.New("geçmiş alınırken hata oluştu")
-	ErrYetersizBakiye  = errors.New("yetersiz bakiye")
+	ErrGecersizIsim       = errors.New("lütfen geçerli bir isim giriniz")
+	ErrNegatifBakiye      = errors.New("başlangıç bakiyesi negatif olamaz")
+	ErrHesapBulunamadi    = errors.New("hesap bulunamadı")
+	ErrHataliPin          = errors.New("hatalı pin kodu")
+	ErrOlusturmaHatasi    = errors.New("hesap oluşturulurken hata oluştu")
+	ErrGecersizMiktar     = errors.New("geçersiz miktar")
+	ErrBasarisizIslem     = errors.New("işlem başarasız")
+	ErrGecmisAlinamadı    = errors.New("geçmiş alınırken hata oluştu")
+	ErrYetersizBakiye     = errors.New("yetersiz bakiye")
+	ErrGonderenBulunamadı = errors.New("gönderen hesap bulunamadı")
+	ErrAliciBulunamadı    = errors.New("alici hesap bulunamadı")
 )
 
 // HesapUsecase: iş kurallarının interface'i.
@@ -29,6 +31,7 @@ type HesapUsecase interface {
 	BakiyeSorgula(id int, pin string) (*models.Hesap, error)
 	ParaYatir(id int, miktarTL float64, pin string) (*models.Hesap, error)
 	ParaCek(id int, miktarTL float64, pin string) (*models.Hesap, error)
+	Transfer(GonderenID int, AliciID int, miktarTL float64, pin string) (*models.TransferIstegi, error)
 	IslemSorgula(id int, pin string) ([]models.Islem, error)
 }
 
@@ -146,6 +149,48 @@ func (u *hesapUsecase) ParaCek(id int, miktarTL float64, pin string) (*models.He
 		Isim:   kayit.Isim,
 		Bakiye: float64(kayit.BakiyeKurus)/100 - miktarTL,
 	}, nil
+}
+
+func (u *hesapUsecase) Transfer(GonderenID int, AliciID int, miktarTL float64, pin string) (*models.TransferIstegi, error) {
+
+	if miktarTL <= 0 {
+		return nil, ErrGecersizMiktar
+	}
+
+	if miktarTL <= 0 {
+		return nil, ErrGecersizMiktar
+	}
+
+	kayitG, err := u.repo.GetByID(GonderenID)
+	if err != nil {
+		return nil, ErrGonderenBulunamadı
+	}
+
+	kayitA, err := u.repo.GetByID(AliciID)
+	if err != nil {
+		return nil, ErrAliciBulunamadı
+	}
+
+	if kayitG.Pin != pin {
+		return nil, ErrHataliPin
+	}
+
+	miktarKurus := int64(math.Round(miktarTL * 100))
+
+	if kayitG.BakiyeKurus < miktarKurus {
+		return nil, ErrYetersizBakiye
+	}
+
+	if err := u.repo.Transfer(GonderenID, AliciID, miktarKurus); err != nil {
+		return nil, ErrBasarisizIslem
+	}
+
+	return &models.TransferIstegi{
+		GonderenID: kayitG.ID,
+		AliciID:    kayitA.ID,
+		Miktar:     miktarTL,
+	}, nil
+
 }
 
 func (u *hesapUsecase) IslemSorgula(id int, pin string) ([]models.Islem, error) {

@@ -23,6 +23,7 @@ type HesapRepository interface {
 	GetByID(id int) (*HesapKaydi, error)
 	BakiyeArttir(id int, miktarKurus int64) error
 	BakiyeAzalt(id int, miktarKurus int64) error
+	Transfer(GonderenID int, AliciID int, miktarKurus int64) error
 	IslemGecmisi(id int) ([]models.Islem, error)
 }
 
@@ -114,7 +115,37 @@ func (r *postgresHesapRepository) BakiyeAzalt(id int, miktarKurus int64) error {
 	}
 
 	return nil
+}
 
+func (r *postgresHesapRepository) Transfer(GonderenID int, AliciID int, miktarKurus int64) error {
+	tx, err := r.db.Begin()
+	if err != nil {
+		return err
+	}
+
+	query := `UPDATE hesaplar SET bakiye = bakiye - $1 WHERE id = $2`
+	if _, err = tx.Exec(query, miktarKurus, GonderenID); err != nil {
+		tx.Rollback()
+		return err
+	}
+
+	query = `INSERT INTO islemler (gonderen_id, alici_id, miktar_tl, islem_tipi) VALUES ($1, $2, $3, $4)`
+	if _, err = tx.Exec(query, GonderenID, AliciID, miktarKurus, "TRANSFER"); err != nil {
+		tx.Rollback()
+		return err
+	}
+
+	query = `UPDATE hesaplar SET bakiye = bakiye + $1 WHERE id = $2`
+	if _, err = tx.Exec(query, miktarKurus, AliciID); err != nil {
+		tx.Rollback()
+		return err
+	}
+
+	if err = tx.Commit(); err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func (r *postgresHesapRepository) IslemGecmisi(id int) ([]models.Islem, error) {

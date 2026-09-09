@@ -81,7 +81,9 @@ func statusFromError(err error) int {
 		return http.StatusUnauthorized
 
 	// 3. Hesap DB'de yoksa (404 Not Found)
-	case errors.Is(err, usecase.ErrHesapBulunamadi):
+	case errors.Is(err, usecase.ErrHesapBulunamadi),
+		errors.Is(err, usecase.ErrGonderenBulunamadı),
+		errors.Is(err, usecase.ErrAliciBulunamadı):
 		return http.StatusNotFound
 
 	// 3b. Yetersiz bakiye (400 Bad Request)
@@ -139,6 +141,29 @@ func (h *HesapHandler) ParaCek(w http.ResponseWriter, r *http.Request) {
 	}
 
 	utils.JSONResponse(w, http.StatusOK, true, "Para çekme işlemi başarılı", cekme)
+}
+
+func (h *HesapHandler) ParaGonder(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		utils.JSONResponse(w, http.StatusMethodNotAllowed, false, "Sadece POST istekleri kabul edilir", nil)
+		return
+	}
+
+	var istek models.TransferIstegi
+	err := json.NewDecoder(r.Body).Decode(&istek)
+	if err != nil || istek.Miktar <= 0 {
+		utils.JSONResponse(w, http.StatusBadRequest, false, "Geçersiz JSON verisi veya miktar", nil)
+		return
+	}
+
+	transfer, err := h.usecase.Transfer(istek.GonderenID, istek.AliciID, istek.Miktar, istek.Pin)
+	if err != nil {
+		status := statusFromError(err)
+		utils.JSONResponse(w, status, false, err.Error(), nil)
+		return
+	}
+
+	utils.JSONResponse(w, http.StatusOK, true, "Transfer işlemi başarılı", transfer)
 }
 
 // IslemGecmisi: POST /api/islem-gecmisi
