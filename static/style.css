@@ -304,25 +304,6 @@ body{
 }
 .passbook-name{ padding-left: 10px; font-size: 13px; color: var(--paper-dim); }
 
-/* ---------- quick actions ---------- */
-.quick-actions{
-  display: flex;
-  justify-content: flex-end;
-  margin-bottom: 12px;
-}
-.quick-action{
-  border: 1px solid var(--brass-dim);
-  background: rgba(201,162,75,0.12);
-  color: var(--brass-soft);
-  font-family: var(--font-body);
-  font-weight: 600;
-  font-size: 12.5px;
-  border-radius: 999px;
-  padding: 8px 12px;
-  cursor: pointer;
-}
-.quick-action:hover{ background: rgba(201,162,75,0.2); }
-
 /* ---------- tabs ---------- */
 .tabs{
   display: flex;
@@ -425,6 +406,73 @@ body{
 /* ---------- currency & asset cards ---------- */
 select.field-input{ appearance: none; }
 select.field-input option{ background: var(--ink); color: var(--paper); }
+
+.btn-toggle-group{
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.btn-toggle{
+  appearance: none;
+  -webkit-appearance: none;
+  flex: 1;
+  min-width: 76px;
+  font-family: var(--font-body);
+  font-weight: 600;
+  font-size: 13px;
+  background: var(--ink);
+  color: var(--paper-dim);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  padding: 11px 14px;
+  cursor: pointer;
+  transition: color .15s ease, background .15s ease, border-color .15s ease,
+              transform .12s ease, box-shadow .15s ease;
+}
+.btn-toggle:hover{
+  color: var(--paper);
+  border-color: var(--brass-dim);
+  background: var(--ink-3);
+}
+
+/* Basılı an: gözle görülür bir "tık" geri bildirimi */
+.btn-toggle:active{
+  transform: scale(0.95);
+  box-shadow: 0 2px 8px -4px rgba(0,0,0,0.8) inset;
+}
+
+.btn-toggle:focus-visible{
+  outline: none;
+  border-color: var(--brass);
+  box-shadow: 0 0 0 3px rgba(201,162,75,0.25);
+}
+
+.btn-toggle.active{
+  color: #241a05;
+  background: linear-gradient(155deg, var(--brass-soft), var(--brass));
+  border-color: var(--brass-soft);
+  transform: translateY(-1px);
+  box-shadow: 0 6px 16px -8px rgba(201,162,75,0.9), 0 0 0 1px rgba(201,162,75,0.35);
+}
+.btn-toggle.active:hover{
+  color: #241a05;
+  background: linear-gradient(155deg, var(--brass-soft), var(--brass));
+  filter: brightness(1.06);
+}
+.btn-toggle.active:active{ transform: translateY(-1px) scale(0.95); }
+
+.rate-box{
+  margin-bottom: 16px;
+  padding: 14px 16px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--line);
+  background: rgba(255,255,255,0.03);
+  display: grid;
+  gap: 8px;
+}
+.rate-row{ display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.rate-label{ font-size: 12px; color: var(--paper-dim); }
+.rate-value{ font-size: 14px; font-weight: 600; color: var(--brass-soft); }
 
 .asset-card{
   margin-top: 18px;

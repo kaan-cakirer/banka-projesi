@@ -219,15 +219,11 @@ function switchTab(name){
   $$(".panel").forEach((p) => { p.hidden = p.dataset.panel !== name; });
 
   if (name === "gecmis") loadHistory();
-  if (name === "doviz") refreshDashboardData();
+  if (name === "doviz") { refreshDashboardData(); loadDovizKur(); }
 }
 
 $$(".tab").forEach((tab) => {
   tab.addEventListener("click", () => switchTab(tab.dataset.tab));
-});
-
-$$(".quick-action").forEach((btn) => {
-  btn.addEventListener("click", () => switchTab(btn.dataset.quickTab));
 });
 
 // ---------- para yatırma ----------
@@ -292,24 +288,58 @@ $("#form-gonder").addEventListener("submit", async (e) => {
 });
 
 // ---------- döviz işlemleri ----------
-$("#doviz-islem").addEventListener("change", () => {
-  const label = $("#doviz-submit-label");
-  label.textContent = $("#doviz-islem").value === "al" ? "Döviz Al" : "Döviz Sat";
+let dovizIslem = "al";
+let dovizKod = "USD";
+
+function setDovizIslem(value){
+  dovizIslem = value;
+  $$("#doviz-islem-group .btn-toggle").forEach((b) => b.classList.toggle("active", b.dataset.islem === value));
+  $("#doviz-submit-label").textContent = value === "al" ? "Döviz Al" : "Döviz Sat";
+}
+
+function setDovizKod(value){
+  dovizKod = value;
+  $$("#doviz-kod-group .btn-toggle").forEach((b) => b.classList.toggle("active", b.dataset.kod === value));
+  loadDovizKur();
+}
+
+$$("#doviz-islem-group .btn-toggle").forEach((btn) => {
+  btn.addEventListener("click", () => setDovizIslem(btn.dataset.islem));
 });
+$$("#doviz-kod-group .btn-toggle").forEach((btn) => {
+  btn.addEventListener("click", () => setDovizKod(btn.dataset.kod));
+});
+
+// Seçili dövizin güncel birim TL karşılığını çekip alış/satış olarak gösterir.
+// Sistemde alış-satış farkı (spread) uygulanmadığı için ikisi de aynı değeri gösterir.
+async function loadDovizKur(){
+  const alis = $("#doviz-rate-alis");
+  const satis = $("#doviz-rate-satis");
+  alis.textContent = "…";
+  satis.textContent = "…";
+
+  try{
+    const data = await api("/doviz-kur", { doviz_kodu: dovizKod });
+    alis.textContent = `₺${tl(data.birim_tl)}`;
+    satis.textContent = `₺${tl(data.birim_tl)}`;
+  } catch(err){
+    alis.textContent = "alınamadı";
+    satis.textContent = "alınamadı";
+    showToast(err.message, "error");
+  }
+}
 
 $("#form-doviz").addEventListener("submit", async (e) => {
   e.preventDefault();
   const form = e.target;
-  const islem = $("#doviz-islem").value;
-  const kod = $("#doviz-kod").value.toUpperCase();
   const miktar = Number($("#doviz-miktar").value);
   const pin = ensureValidPin(normalizePin($("#doviz-pin").value || session.pin));
 
   setBusy(form, true);
   try{
-    await api(islem === "al" ? "/doviz-al" : "/doviz-sat", { hesap_id: session.id, doviz_kodu: kod, miktar, pin });
+    await api(dovizIslem === "al" ? "/doviz-al" : "/doviz-sat", { hesap_id: session.id, doviz_kodu: dovizKod, miktar, pin });
     await refreshDashboardData();
-    showToast(islem === "al" ? `${kod} alımı tamamlandı.` : `${kod} satışı tamamlandı.`, "success");
+    showToast(dovizIslem === "al" ? `${dovizKod} alımı tamamlandı.` : `${dovizKod} satışı tamamlandı.`, "success");
     form.reset();
   } catch(err){
     showToast(err.message, "error");

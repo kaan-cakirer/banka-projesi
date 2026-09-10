@@ -115,10 +115,6 @@
         <div class="passbook-name" id="passbook-name">—</div>
       </div>
 
-      <div class="quick-actions" role="group" aria-label="Hızlı işlemler">
-        <button class="quick-action" data-quick-tab="doviz" type="button">Döviz al / sat</button>
-      </div>
-
       <!-- Sekmeler -->
       <nav class="tabs" role="tablist">
         <button class="tab active" data-tab="yatir" role="tab" aria-selected="true">Para Yatır</button>
@@ -199,24 +195,35 @@
         <p class="card-hint">TL bakiyenizden döviz satın alın veya mevcut dövizlerinizi görüntüleyin.</p>
 
         <form id="form-doviz" novalidate>
-          <div class="field-row">
-            <label class="field">
-              <span class="field-label">İşlem</span>
-              <select class="field-input" id="doviz-islem">
-                <option value="al">Döviz Al</option>
-                <option value="sat">Döviz Sat</option>
-              </select>
-            </label>
-            <label class="field">
-              <span class="field-label">Döviz Kodu</span>
-              <select class="field-input" id="doviz-kod">
-                <option value="USD">USD</option>
-                <option value="EUR">EUR</option>
-                <option value="GBP">GBP</option>
-                <option value="JPY">JPY</option>
-              </select>
-            </label>
+          <div class="field">
+            <span class="field-label">İşlem</span>
+            <div class="btn-toggle-group" id="doviz-islem-group" role="group" aria-label="İşlem türü">
+              <button class="btn-toggle active" type="button" data-islem="al">Döviz Al</button>
+              <button class="btn-toggle" type="button" data-islem="sat">Döviz Sat</button>
+            </div>
           </div>
+
+          <div class="field">
+            <span class="field-label">Döviz Kodu</span>
+            <div class="btn-toggle-group" id="doviz-kod-group" role="group" aria-label="Döviz kodu">
+              <button class="btn-toggle active" type="button" data-kod="USD">USD</button>
+              <button class="btn-toggle" type="button" data-kod="EUR">EUR</button>
+              <button class="btn-toggle" type="button" data-kod="GBP">GBP</button>
+              <button class="btn-toggle" type="button" data-kod="JPY">JPY</button>
+            </div>
+          </div>
+
+          <div class="rate-box" id="doviz-rate-box">
+            <div class="rate-row">
+              <span class="rate-label">Birim Alım Fiyatı</span>
+              <span class="rate-value mono" id="doviz-rate-alis">—</span>
+            </div>
+            <div class="rate-row">
+              <span class="rate-label">Birim Satım Fiyatı</span>
+              <span class="rate-value mono" id="doviz-rate-satis">—</span>
+            </div>
+          </div>
+
           <label class="field">
             <span class="field-label">Miktar</span>
             <input class="field-input mono" type="number" min="0.01" step="0.01" id="doviz-miktar" placeholder="0.00" required>

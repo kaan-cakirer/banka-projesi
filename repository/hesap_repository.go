@@ -129,14 +129,14 @@ func (r *postgresHesapRepository) Transfer(GonderenID int, AliciID int, miktarKu
 		return err
 	}
 
-	query = `INSERT INTO islemler (gonderen_id, alici_id, miktar_tl, islem_tipi) VALUES ($1, $2, $3, $4)`
-	if _, err = tx.Exec(query, GonderenID, AliciID, miktarKurus, "TRANSFER"); err != nil {
+	query = `UPDATE hesaplar SET bakiye = bakiye + $1 WHERE id = $2`
+	if _, err = tx.Exec(query, miktarKurus, AliciID); err != nil {
 		tx.Rollback()
 		return err
 	}
 
-	query = `UPDATE hesaplar SET bakiye = bakiye + $1 WHERE id = $2`
-	if _, err = tx.Exec(query, miktarKurus, AliciID); err != nil {
+	query = `INSERT INTO islemler (gonderen_id, alici_id, miktar_tl, islem_tipi) VALUES ($1, $2, $3, $4)`
+	if _, err = tx.Exec(query, GonderenID, AliciID, miktarKurus, "TRANSFER"); err != nil {
 		tx.Rollback()
 		return err
 	}

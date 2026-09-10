@@ -19,6 +19,15 @@ type DovizIslemIstegi struct {
 	Pin       string  `json:"pin"`
 }
 
+type DovizKurIstegi struct {
+	DovizKodu string `json:"doviz_kodu"`
+}
+
+type DovizKurYaniti struct {
+	DovizKodu string  `json:"doviz_kodu"`
+	BirimTL   float64 `json:"birim_tl"`
+}
+
 type DovizIslem struct {
 	ID         int     `json:"id"`
 	HesapID    int     `json:"hesap_id"`

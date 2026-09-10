@@ -73,7 +73,9 @@ func statusFromError(err error) int {
 	// 1. Kullanıcının eksik/yanlış veri girdiği durumlar (400 Bad Request)
 	case errors.Is(err, usecase.ErrGecersizIsim),
 		errors.Is(err, usecase.ErrNegatifBakiye),
-		errors.Is(err, usecase.ErrGecersizMiktar):
+		errors.Is(err, usecase.ErrGecersizMiktar),
+		errors.Is(err, usecase.ErrGecersizDovizKodu),
+		errors.Is(err, usecase.ErrYetersizDoviz):
 		return http.StatusBadRequest
 
 	// 2. PIN Yanlışsa (401 Unauthorized)

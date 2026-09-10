@@ -35,6 +35,10 @@ func main() {
 	hesapUsecase := usecase.NewHesapUsecase(hesapRepo)
 	hesapHandler := handlers.NewHesapHandler(hesapUsecase)
 
+	dovizRepo := repository.NewDovizRepository(db)
+	dovizUsecase := usecase.NewDovizUsecase(dovizRepo, hesapRepo)
+	dovizHandler := handlers.NewDovizHandler(dovizUsecase)
+
 	// 1. API Endpoints
 	http.HandleFunc("/api/hesap-ac", corsMiddleware(hesapHandler.HesapAc))
 	http.HandleFunc("/api/bakiye", corsMiddleware(hesapHandler.BakiyeSorgula))
@@ -42,9 +46,10 @@ func main() {
 	http.HandleFunc("/api/para-cek", corsMiddleware(hesapHandler.ParaCek))
 	http.HandleFunc("/api/islem-gecmisi", corsMiddleware(hesapHandler.IslemGecmisi))
 	http.HandleFunc("/api/para-gonder", corsMiddleware(hesapHandler.ParaGonder))
-	http.HandleFunc("/api/doviz-al", corsMiddleware(handlers.DovizAl))
-	http.HandleFunc("/api/doviz-sat", corsMiddleware(handlers.DovizSat))
-	http.HandleFunc("/api/varliklar", corsMiddleware(handlers.VarliklariGetir))
+	http.HandleFunc("/api/doviz-al", corsMiddleware(dovizHandler.DovizAl))
+	http.HandleFunc("/api/doviz-sat", corsMiddleware(dovizHandler.DovizSat))
+	http.HandleFunc("/api/doviz-kur", corsMiddleware(dovizHandler.DovizKur))
+	http.HandleFunc("/api/varliklar", corsMiddleware(dovizHandler.VarliklariGetir))
 
 	// 2. Frontend Statik Dosya Sunucusu (Çakışmayı önleyen özel yönlendirme)
 	fs := http.FileServer(http.Dir("./static"))
@@ -55,6 +60,10 @@ func main() {
 			http.NotFound(w, r)
 			return
 		}
+		// Tarayıcı Last-Modified'a bakıp sezgisel önbellek uyguluyor ve güncellenen
+		// CSS/JS'i almıyordu; no-cache ile her istekte doğrulamaya zorluyoruz.
+		w.Header().Set("Cache-Control", "no-cache")
+
 		// Aksi halde static klasöründeki dosyaları (index.html, style.css, app.js) sun
 		fs.ServeHTTP(w, r)
 	})
